@@ -57,8 +57,8 @@ bool InitializeWindow(HINSTANCE instance, int show_command, HWND& out_window) {
 bool InitializeDirectX12() {
   HRESULT result = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&g_device));
   if (FAILED(result)) {
-    wchar_t buffer[128] = {};
-    swprintf_s(buffer, L"D3D12CreateDevice failed (HRESULT: 0x%08X).\n", static_cast<unsigned int>(result));
+    wchar_t buffer[256] = {};
+    swprintf_s(buffer, L"D3D12CreateDevice failed (HRESULT: 0x%08X). Ensure a DirectX 12-compatible adapter/driver is available.\n", static_cast<unsigned int>(result));
     OutputDebugString(buffer);
     return false;
   }
@@ -83,7 +83,8 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show_command) {
   }
 
   if (!InitializeDirectX12()) {
-    MessageBox(window, L"Failed to initialize DirectX 12 device.", kWindowTitle, MB_ICONERROR | MB_OK);
+    MessageBox(window, L"Failed to initialize DirectX 12 device. Ensure your GPU/driver supports DirectX 12.", kWindowTitle, MB_ICONERROR | MB_OK);
+    DestroyWindow(window);
     return -1;
   }
 
