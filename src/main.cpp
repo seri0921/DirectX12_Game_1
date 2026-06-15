@@ -2,6 +2,7 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <wrl/client.h>
+#include <cwchar>
 
 using Microsoft::WRL::ComPtr;
 
@@ -55,7 +56,14 @@ bool InitializeWindow(HINSTANCE instance, int show_command, HWND& out_window) {
 
 bool InitializeDirectX12() {
   HRESULT result = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&g_device));
-  return SUCCEEDED(result);
+  if (FAILED(result)) {
+    wchar_t buffer[128] = {};
+    swprintf_s(buffer, L"D3D12CreateDevice failed (HRESULT: 0x%08X).\n", static_cast<unsigned int>(result));
+    OutputDebugString(buffer);
+    return false;
+  }
+
+  return true;
 }
 
 void RunMessageLoop() {
@@ -80,5 +88,6 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show_command) {
   }
 
   RunMessageLoop();
+  g_device.Reset();
   return 0;
 }
