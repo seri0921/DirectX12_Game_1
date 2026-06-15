@@ -1,69 +1,136 @@
-# Prerequisites
-*.d
+# =========================
+# Visual Studio / C++
+# =========================
 
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.obj
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
 
-# Precompiled Headers
-*.gch
-*.pch
+# Visual Studio cache/options
+*.VC.db
+*.VC.VC.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.ipch
 
-# Linker files
-*.ilk
+# =========================
+# Build output
+# =========================
 
-# Debugger Files
-*.pdb
+[Dd]ebug/
+[Rr]elease/
+[xX]64/
+[xX]86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
 
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-*.so.*
-
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-
-# Build directories
+[Bb]in/
+[Oo]bj/
 build/
-Build/
-build-*/
+out/
 
-# CMake generated files
+# MSBuild generated files
+*.obj
+*.iobj
+*.pdb
+*.ipdb
+*.ilk
+*.idb
+*.tlog
+*.lastbuildstate
+*.log
+*.rsp
+*.pch
+*.exp
+*.lib
+*.exe
+*.dll
+*.appx
+*.appxsym
+*.msix
+*.msixsym
+
+# Visual Studio generated folders
+*.dir/
+GeneratedFiles/
+
+# =========================
+# DirectX / Shader related
+# =========================
+
+# Compiled shader binaries
+*.cso
+*.dxil
+
+# Shader compiler intermediate/debug files
+*.pdb
+*.hlsl.cache
+
+# Keep HLSL source files
+!*.hlsl
+!*.hlsli
+
+# =========================
+# Windows / OS
+# =========================
+
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# =========================
+# NuGet
+# =========================
+
+*.nupkg
+packages/
+!packages/build/
+.nuget/
+
+# =========================
+# CMake
+# =========================
+
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
 Makefile
-install_manifest.txt
 compile_commands.json
 
-# Temporary files
-*.tmp
-*.log
-*.bak
-*.swp
-
+# =========================
 # vcpkg
+# =========================
+
 vcpkg_installed/
+.vcpkg-root
 
-# debug information files
-*.dwo
+# =========================
+# IDE / Editor
+# =========================
 
-# test output & cache
-Testing/
-.cache/
+.vscode/
+.idea/
+
+# ただし VSCode 設定を共有したい場合は以下をコメントアウト
+# !.vscode/settings.json
+# !.vscode/tasks.json
+# !.vscode/launch.json
+
+# =========================
+# Logs
+# =========================
+
+*.log
+
+# =========================
+# Temporary files
+# =========================
+
+*.tmp
+*.temp
+*.bak
+*.orig
+*.swp
