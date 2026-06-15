@@ -28,7 +28,7 @@ bool InitializeWindow(HINSTANCE instance, int show_command, HWND& out_window) {
   window_class.hInstance = instance;
   window_class.lpszClassName = kWindowClassName;
 
-  if (RegisterClassEx(&window_class) == 0) {
+  if (RegisterClassEx(&window_class) == 0 && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
     return false;
   }
 
@@ -47,6 +47,7 @@ bool InitializeWindow(HINSTANCE instance, int show_command, HWND& out_window) {
       nullptr);
 
   if (out_window == nullptr) {
+    UnregisterClass(kWindowClassName, instance);
     return false;
   }
 
@@ -85,10 +86,12 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int show_command) {
   if (!InitializeDirectX12()) {
     MessageBox(window, L"Failed to initialize DirectX 12 device. Ensure your GPU/driver supports DirectX 12.", kWindowTitle, MB_ICONERROR | MB_OK);
     DestroyWindow(window);
+    UnregisterClass(kWindowClassName, instance);
     return -1;
   }
 
   RunMessageLoop();
   g_device.Reset();
+  UnregisterClass(kWindowClassName, instance);
   return 0;
 }
