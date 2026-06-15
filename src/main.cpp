@@ -28,8 +28,10 @@ bool InitializeWindow(HINSTANCE instance, int show_command, HWND& out_window) {
   window_class.hInstance = instance;
   window_class.lpszClassName = kWindowClassName;
 
-  if (RegisterClassEx(&window_class) == 0 && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
-    return false;
+  if (RegisterClassEx(&window_class) == 0) {
+    if (GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
+      return false;
+    }
   }
 
   out_window = CreateWindowEx(
