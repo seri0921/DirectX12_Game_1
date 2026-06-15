@@ -8,6 +8,7 @@ using Microsoft::WRL::ComPtr;
 namespace {
 constexpr wchar_t kWindowClassName[] = L"DirectX12GameWindow";
 constexpr wchar_t kWindowTitle[] = L"DirectX12 Game 1";
+ComPtr<ID3D12Device> g_device;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT message, WPARAM w_param, LPARAM l_param) {
   switch (message) {
@@ -53,19 +54,15 @@ bool InitializeWindow(HINSTANCE instance, int show_command, HWND& out_window) {
 }
 
 bool InitializeDirectX12() {
-  ComPtr<ID3D12Device> device;
-
-  HRESULT result = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device));
+  HRESULT result = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&g_device));
   return SUCCEEDED(result);
 }
 
 void RunMessageLoop() {
   MSG message = {};
-  while (message.message != WM_QUIT) {
-    if (PeekMessage(&message, nullptr, 0, 0, PM_REMOVE)) {
-      TranslateMessage(&message);
-      DispatchMessage(&message);
-    }
+  while (GetMessage(&message, nullptr, 0, 0) > 0) {
+    TranslateMessage(&message);
+    DispatchMessage(&message);
   }
 }
 }
