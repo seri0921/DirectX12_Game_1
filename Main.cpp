@@ -1,8 +1,11 @@
 #include <Windows.h>
+#include <memory>
+#include "Game.h"
 
 // 関数のプロトタイプ宣言
 // ウィンドウプロシージャのプロトタイプ宣言
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
+
 
 // グローバル変数
 namespace
@@ -14,6 +17,10 @@ namespace
 	// ウィンドウの幅と高さ
 	constexpr UINT WinWidth = 640;
 	constexpr UINT WinHeight = 480;
+
+	// ゲームデータ
+	std::unique_ptr<Game> game;
+
 }
 
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
@@ -51,6 +58,13 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
 	ShowWindow(hwnd, SW_SHOWNORMAL);
 
+	// 初期化
+	{
+		// ゲームデータの初期化
+		game = std::make_unique<Game>();
+		game->initialize(hwnd, WinWidth, WinHeight);
+	}
+
 	// メッセージループ
 	MSG msg = {};
 	while (GetMessageW(&msg, nullptr, 0, 0) > 0)
@@ -62,11 +76,16 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		}
 		if (msg.message == WM_QUIT) break;
 
-		// ToDo (ゲームループ処理）
+		// ゲームループ
+		if (!game->loop())
+		{
+			DestroyWindow(hwnd);
+		}
 
 		TranslateMessage(&msg);
 		DispatchMessageW(&msg);
 	}
+
 
 	// ウィンドウの登録を解除
 	UnregisterClassW(wc.lpszClassName, wc.hInstance);
