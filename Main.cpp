@@ -11,12 +11,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 namespace
 {
 	// ウィンドウのクラス名とタイトル
-	const wchar_t* WinClassName = L"SampleGame";
-	const wchar_t* WinGameName = L"Game";
+	const wchar_t* WinClassName = L"Break Out";
+	const wchar_t* WinGameName = L"ブロック崩し";
 
 	// ウィンドウの幅と高さ
-	constexpr UINT WinWidth = 640;
-	constexpr UINT WinHeight = 480;
+	constexpr UINT WinWidth = 480;
+	constexpr UINT WinHeight = 640;
 
 	// ゲームデータ
 	std::unique_ptr<Game> game;

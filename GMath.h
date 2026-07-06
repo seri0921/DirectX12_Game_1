@@ -27,7 +27,7 @@ float length(const Vector2d& v);
 float lengthSq(const Vector2d& v);
 Vector2d normalize(const Vector2d& v);
 
-Vector2d unitVectorAngle(float theta);
+Vector2d unitVecAngle(float theta);
 float deg2rad(float theta);
 float rad2deg(float theta);
 

@@ -143,17 +143,35 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Actor.cpp" />
+    <ClCompile Include="Actor2d.cpp" />
+    <ClCompile Include="Actor3d.cpp" />
+    <ClCompile Include="BallActor.cpp" />
+    <ClCompile Include="BlockActor.cpp" />
+    <ClCompile Include="BreakoutScene.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GameUtil.cpp" />
     <ClCompile Include="GMath.cpp" />
     <ClCompile Include="Keyboard.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="PaddleActor.cpp" />
+    <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="SpriteActor.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Actor.h" />
+    <ClInclude Include="Actor2d.h" />
+    <ClInclude Include="Actor3d.h" />
+    <ClInclude Include="BallActor.h" />
+    <ClInclude Include="BlockActor.h" />
+    <ClInclude Include="BreakoutScene.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameUtil.h" />
     <ClInclude Include="GMath.h" />
     <ClInclude Include="Keyboard.h" />
+    <ClInclude Include="PaddleActor.h" />
+    <ClInclude Include="Scene.h" />
+    <ClInclude Include="SpriteActor.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

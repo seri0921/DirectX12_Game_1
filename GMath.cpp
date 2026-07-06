@@ -71,7 +71,7 @@ Vector2d normalize(const Vector2d& v)
 	return inLen * v;
 }
 
-Vector2d unitVectorAngle(float theta)
+Vector2d unitVecAngle(float theta)
 {
 	return Vector2d(std::cos(theta), std::sin(theta));
 }

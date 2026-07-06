@@ -1,5 +1,6 @@
 #include "Game.h"
 #include <exception>
+#include "BreakoutScene.h"
 
 const float Game::FrameRate = 60.0f;
 const float Game::MaxDeltaTime = 0.05f;
@@ -15,15 +16,17 @@ Game::Game()
 	, m_startTime{}
 	, m_endTime{}
 	, m_freqTime{}
-	, m_ball()
-	, m_ballVel()
-	, m_player()
-	, m_playerSpeed()
 {
 }
 
 Game::~Game()
 {
+	// シーンの解放
+	if (m_scene.get() != nullptr)
+	{
+		m_scene.reset();
+	}
+
 	{
 		// バックバッファの解放
 		if (m_backBufferDC)
@@ -36,6 +39,15 @@ Game::~Game()
 			DeleteObject(m_backBuffer);
 			m_backBuffer = nullptr;
 		}
+	}
+
+	{
+		// 画像データの削除
+		for (auto it = m_spriteImages.begin(); it != m_spriteImages.end(); ++it)
+		{
+			releaseImageData(it->second);
+		}
+		m_spriteImages.clear();
 	}
 }
 
@@ -56,16 +68,6 @@ void Game::initialize(HWND hwnd, int width, int height)
 		ReleaseDC(hwnd, hdc);
 	}
 
-	{
-		// ボールの初期化
-		m_ball = Circle(Vector2d(50.0f, 200.0f), 10.0f);
-		m_ballVel = Vector2d(250.0f, 150.0f);
-
-		// プレイヤーの初期化
-		m_player = Circle(Vector2d(320.0f, 240.0f), 60.0f);
-		m_playerSpeed = 100.0f;
-	}
-
 	// 時間計測の初期化
 	QueryPerformanceFrequency(&m_freqTime);
 	QueryPerformanceCounter(&m_startTime);
@@ -73,8 +75,9 @@ void Game::initialize(HWND hwnd, int width, int height)
 	// キーボードの初期化
 	m_keyboard.initialize();
 
-	// ゲーム状態の初期化
-	m_isRunning = true;
+	// シーンの初期化
+	m_scene = std::make_unique<BreakoutScene>(this);
+
 }
 
 bool Game::loop()
@@ -84,11 +87,11 @@ bool Game::loop()
 	{
 		input();
 		update(deltaTime);
-		if (m_isRunning == false) return false;
+		if (m_scene->isRunning() == false) return false;
 		draw();
 	}
 	
-	return m_isRunning;
+	return m_scene->isRunning();
 }
 
 void Game::input()
@@ -97,70 +100,15 @@ void Game::input()
 	m_keyboard.input();
 }
 
-void Game::update(float deltaTime)
-{
-	{
-		// プレイヤーの更新
-		int vx = 0, vy = 0;
-		if (m_keyboard.isDown(VK_LEFT)) vx -= 1;
-		if (m_keyboard.isDown(VK_RIGHT)) vx += 1;
-		if (m_keyboard.isDown(VK_UP)) vy -= 1;
-		if (m_keyboard.isDown(VK_DOWN)) vy += 1;
-		Vector2d playerVel = m_playerSpeed * normalize(Vector2d((float) vx, (float) vy));
-
-		m_player.pos += deltaTime * playerVel;
-
-		float r = m_player.radius;
-		if (m_player.pos.x - r < 0.0f) m_player.pos.x = r;
-		if (m_player.pos.x + r >= m_width) m_player.pos.x = m_width - r;
-		if (m_player.pos.y - r < 0.0f) m_player.pos.y = r;
-		if (m_player.pos.y + r >= m_height) m_player.pos.y = m_height - r;
-	}
-
-	// ゲームの状態を更新する処理を記述
-	{
-		// ボールの移動
-		m_ball.pos += m_ballVel * deltaTime;
-
-		float r = m_ball.radius;
-		if (m_ball.pos.x - r < 0.0f)
-		{
-			m_ball.pos.x = r;
-			m_ballVel.x *= -1.0f;
-		}
-		if (m_ball.pos.x + r >= m_width)
-		{
-			m_ball.pos.x = m_width - r;
-			m_ballVel.x *= -1.0f;
-		}
-		if (m_ball.pos.y - r < 0.0f)
-		{
-			m_ball.pos.y = r;
-			m_ballVel *= -1.0f;
-		}
-		if (m_ball.pos.y + r >= m_height)
-		{
-			m_ball.pos.y = m_height - r;
-			m_ballVel.y *= -1.0f;
-		}
-	}
-
-	// 衝突判定
-	if (detectCircleCollision(m_player, m_ball))
-	{
-		m_isRunning = false;
-		return;
-	}
+void Game::update(float deltaTime){
+	m_scene->update(deltaTime);
 }
 	
 void Game::draw()
 {
 	clear();
 
-	// ゲームの状態を描画する処理を記述
-	drawCircle(m_player, RGB(30, 30, 255));
-	drawCircle(m_ball, RGB(255, 30, 30));
-
+	m_scene->draw();
 	flip();
 }
 
@@ -205,5 +153,103 @@ bool Game::tick(float& deltaTime)
 
 	m_startTime = m_endTime;
 	deltaTime = (deltaTime > MaxDeltaTime) ? MaxDeltaTime : deltaTime;
+	return true;
+}
+
+void Game::drawString(const wchar_t* str, const Vector2d& pos,
+	COLORREF color, int fsize)
+{
+	int x = (int)(std::round(pos.x));
+	int y = (int)(std::round(pos.y));
+	int len = (int)wcslen(str);
+
+	int oldMode = GetBkMode(m_backBufferDC);
+	SetBkMode(m_backBufferDC, TRANSPARENT);
+	COLORREF oldColor = SetTextColor(m_backBufferDC, color);
+
+	HFONT font = CreateFontW(fsize, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE,
+		SHIFTJIS_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+		FF_DONTCARE, nullptr);
+	HFONT oldFont = (HFONT)SelectObject(m_backBufferDC, font);
+
+	TextOutW(m_backBufferDC, x, y, str, len);
+
+	SelectObject(m_backBufferDC, oldFont);
+	SetBkMode(m_backBufferDC, oldMode);
+	SetTextColor(m_backBufferDC, oldColor);
+	DeleteObject(font);
+}
+
+void Game::drawString(const wchar_t* str, int num, const Vector2d& pos,
+	COLORREF color, int fsize)
+{
+	static wchar_t buf[1024];
+	wsprintfW(buf, str, num);
+
+	drawString(buf, pos, color, fsize);
+}
+
+void Game::drawRect(Box rect, COLORREF fillColor, COLORREF penColor)
+{
+	int left = (int)std::round(rect.pos.x);
+	int top = (int)std::round(rect.pos.y);
+	int right = (int)std::round(rect.pos.x + rect.width);
+	int bottom = (int)std::round(rect.pos.y + rect.height);
+
+	HBRUSH rectBrush = CreateSolidBrush(fillColor);
+	HBRUSH oldBrush = (HBRUSH)SelectObject(m_backBufferDC, rectBrush);
+	HPEN rectPen = CreatePen(PS_SOLID, 1, penColor);
+	HPEN oldPen = (HPEN)SelectObject(m_backBufferDC, rectPen);
+
+	Rectangle(m_backBufferDC, left, top, right, bottom);
+
+	SelectObject(m_backBufferDC, oldBrush);
+	SelectObject(m_backBufferDC, oldPen);
+	DeleteObject(rectBrush);
+	DeleteObject(rectPen);
+}
+
+bool Game::loadSprite(const std::wstring& filePath, int& imgWidth, int& imgHeight)
+{
+	if (m_spriteImages.find(filePath) != m_spriteImages.end())
+	{
+		ImageData img = m_spriteImages[filePath];
+		imgWidth = img.width;
+		imgHeight = img.height;
+		return true;
+	}
+
+	ImageData img;
+	if (loadImageData(filePath, img))
+	{
+		m_spriteImages[filePath] = img;
+		imgWidth = img.width;
+		imgHeight = img.height;
+		return true;
+	}
+	return false;
+}
+
+bool Game::drawSprite(const std::wstring& filePath,
+	const Vector2d& pos, const Vector2d& offset) 
+{
+	auto it = m_spriteImages.find(filePath);
+	if (it == m_spriteImages.end())
+	{
+		int w, h;
+		if (!loadSprite(filePath, w, h)) return false;
+		it = m_spriteImages.find(filePath);
+	}
+
+	ImageData sprite = it->second;
+	Vector2d p = pos + offset;
+	int x = (int)std::round(p.x);
+	int y = (int)std::round(p.y);
+	HDC hdcImg = CreateCompatibleDC(m_backBufferDC);
+	SelectObject(hdcImg, sprite.img);
+	BitBlt(m_backBufferDC, x, y, sprite.width, sprite.height, hdcImg,
+		0, 0, SRCCOPY);
+	DeleteDC(hdcImg);
+
 	return true;
 }
