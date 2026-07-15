@@ -61,3 +61,6 @@ struct ImageData
 bool loadImageData(const std::wstring& filePath, ImageData& imgData);
 // 画像開放
 void releaseImageData(ImageData& imgData);
+
+// 数値情報を出力ウィンドウに表示
+void printNum(const wchar_t* str, int num);

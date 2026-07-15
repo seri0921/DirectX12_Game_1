@@ -53,7 +53,7 @@ BreakoutScene::BreakoutScene(Game* game)
 	{
 		// 背景画像の読み込み
 		m_backImage = std::make_unique<SpriteActor>(this, L"src\\st.bmp");
-		if (!m_backImage->isEnebled()) throw std::exception();
+		//if (!m_backImage->isEnebled()) throw std::exception();
 	}
 	m_isRunning = true;
 }

@@ -88,3 +88,10 @@ void releaseImageData(ImageData& imgData)
 	imgData.width = 0;
 	imgData.height = 0;
 }
+
+void printNum(const wchar_t* str, int num)
+{
+	static wchar_t buf[1024];
+	wsprintfW(buf, str, num);
+	OutputDebugStringW(buf);
+}
