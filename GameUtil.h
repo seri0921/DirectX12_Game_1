@@ -3,6 +3,40 @@
 #include "GMath.h"
 #include <Windows.h>
 #include <string>
+#include <vector>
+
+// 頂点データ (uv座標対応)
+struct VertexUV
+{
+	XMFLOAT3 pos;
+	XMFLOAT2 uv;
+};
+
+// 画素データ（RGBA成分、8bit）
+struct ColorRGBA
+{
+	unsigned char r;
+	unsigned char g;
+	unsigned char b;
+	unsigned char a;
+
+	ColorRGBA() : r(0), g(0), b(0), a(255) {}
+	ColorRGBA(unsigned char red, unsigned char green, unsigned char blue,
+		unsigned char alpha) : r(red), g(green), b(blue), a(alpha) {}
+	ColorRGBA(XMFLOAT3 color, float alpha = 1.0f);
+
+};
+
+// カラーベクトルの定数
+extern const XMFLOAT3 ColorWhite;
+extern const XMFLOAT3 ColorBlack;
+extern const XMFLOAT3 ColorGray;
+extern const XMFLOAT3 ColorRed;
+extern const XMFLOAT3 ColorGreen;
+extern const XMFLOAT3 ColorBlue;
+extern const XMFLOAT3 ColorYellow;
+extern const XMFLOAT3 ColorCyan;
+extern const XMFLOAT3 ColorMagenta;
 
 // 円の表現
 struct Circle
@@ -64,3 +98,5 @@ void releaseImageData(ImageData& imgData);
 
 // 数値情報を出力ウィンドウに表示
 void printNum(const wchar_t* str, int num);
+
+void createRandomNoizeImage(std::vector<ColorRGBA>& img, class Game* game);

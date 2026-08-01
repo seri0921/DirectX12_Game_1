@@ -7,6 +7,7 @@
 #include <memory>
 #include "Scene.h"
 #include "Renderer.h"
+#include <random>
 
 class Game
 {
@@ -23,6 +24,10 @@ public:
 
 	const Keyboard& getKeyboard() const { return m_keyboard; }
 	Renderer* getRenderer() { return m_renderer.get(); }
+
+	double getRand();
+	int getRand(int minValue, int maxValue);
+	bool getBoolRand();
 
 
 private:
@@ -42,6 +47,9 @@ private:
 
 	std::unique_ptr<Scene> m_scene;
 	std::unique_ptr<Renderer> m_renderer;
+
+	std::mt19937_64 m_rand;
+	std::uniform_real_distribution<double> m_uniRand;
 
 	void input();
 	void update(float deltaTime);

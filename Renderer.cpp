@@ -1,14 +1,29 @@
 #include "Renderer.h"
 #include "Game.h"
 
-Renderer::Renderer(Game* game, float r, float g, float b)
+#include <d3dcompiler.h>
+#pragma comment(lib, "d3dcompiler.lib")
+
+Renderer::Renderer(Game* game, XMFLOAT3 backColor)
 	: m_game(game)
 	, m_featureLevel()
 	, m_bufferIndex(0)
 	, m_rtvIncSize(0)
-	, m_backColor{ r, g, b }
+	, m_csuIncSize(0)
+	, m_renderTargetFormat(DXGI_FORMAT_R8G8B8A8_UNORM)
+	, m_backColor{ backColor }
 	, m_fenceValues{ 0 }
+	, m_vertexBufferView{}
+	, m_indexBufferView{}
 {
+	m_vertices[0] = { { -0.525f, -0.7f, 0.0f }, { 0.0f, 1.0f } };
+	m_vertices[1] = { { -0.525f, 0.7f, 0.0f }, { 0.0f, 0.0f } };
+	m_vertices[2] = { { 0.525f, -0.7f, 0.0f }, { 1.0f, 1.0f } };
+	m_vertices[3] = { { 0.525f, 0.7f, 0.0f }, { 1.0f, 0.0f } };
+
+	m_indices[0] = 0;	m_indices[1] = 1;	m_indices[2] = 2;
+	m_indices[3] = 3;	m_indices[4] = 2;	m_indices[5] = 1;
+
 }
 
 Renderer::~Renderer()
@@ -30,8 +45,48 @@ bool Renderer::initialize()
 	if (!createCommandList()) return false;
 	if (!createRenderTargetView()) return false;
 	if (!createFence()) return false;
+	setViewport(m_viewport);
+	setScissorRect(m_scissorRect);
 
 	m_cmdList->Close();
+
+	// 入力レイアウト、ルートシグネチャ、PSO
+	D3D12_INPUT_ELEMENT_DESC inputLayouts[2];
+	inputLayouts[0] = { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,
+		D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+	inputLayouts[1] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
+		D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
+
+	if (!createRootSignature(m_simpleRootSig.GetAddressOf())) return false;
+	if (!createGPipelineState(m_simplePSO.GetAddressOf(), m_simpleRootSig.Get(),
+		m_renderTargetFormat, L"shader\\simpleVS.cso", L"shader\\simplePS.cso",
+		inputLayouts, 2)) return false;
+
+	// 頂点バッファの生成
+	if (!createResourceBuffer(m_vertexBuffer.GetAddressOf(),
+		4 * sizeof(VertexUV))) return false;
+	if (!uploadResourceBuffer(m_vertexBuffer.Get(),
+		(void*)m_vertices, 4 * sizeof(VertexUV))) return false;
+	setVertexBufferView(m_vertexBufferView, m_vertexBuffer.Get(),
+		4 * sizeof(VertexUV), sizeof(VertexUV));
+
+	// インデックスバッファの生成
+	if (!createResourceBuffer(m_indexBuffer.GetAddressOf(),
+		6 * sizeof(unsigned short))) return false;
+	if (!uploadResourceBuffer(m_indexBuffer.Get(),
+		(void*)m_indices, 6 * sizeof(unsigned short))) return false;
+	setIndexBufferView(m_indexBufferView, m_indexBuffer.Get(),
+		6 * sizeof(unsigned short));
+
+	// シェーダーリソース用ディスクリプタヒープの生成
+	if (!createDescHeap(m_scDescHeap.GetAddressOf(), 1)) return false;
+
+	// 画像ファイルを読み込んでテクスチャを生成、ビューをセット
+	TexMetadata meta;
+	if (!readImageFile(m_textureBuffer.GetAddressOf(),
+		meta, L"src\\oreka.dds", true)) return false;
+	setShaderResourceView(m_textureBuffer.Get(), meta.format,
+		m_scDescHeap.Get(), 0);
 
 	return true;
 }
@@ -58,8 +113,13 @@ void Renderer::begin()
 	rtvHandle.ptr += m_bufferIndex * m_rtvIncSize;
 	m_cmdList->OMSetRenderTargets(1, &rtvHandle, true, nullptr);
 
-	float clearColor[4] = { m_backColor[0], m_backColor[1], m_backColor[2], 1.0f };
+	float clearColor[4] = { m_backColor.x, m_backColor.y, m_backColor.z, 1.0f };
 	m_cmdList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
+
+	// RSSetViewportsメソッド： ビューポートの設定コマンド
+	// RSSetScissorRectsメソッド： シザー矩形の設定コマンド
+	m_cmdList->RSSetViewports(1, &m_viewport);
+	m_cmdList->RSSetScissorRects(1, &m_scissorRect);
 }
 
 void Renderer::end()
@@ -149,7 +209,9 @@ bool Renderer::createDevice(const wchar_t* adapterName)
 	if (m_device.Get() == nullptr) return false;
 
 	m_rtvIncSize = m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	
+	m_csuIncSize =
+		m_device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
 	return true;
 }
 
@@ -278,7 +340,7 @@ bool Renderer::createRenderTargetView()
 		if (FAILED(hr)) return false;
 
 		D3D12_RENDER_TARGET_VIEW_DESC rDesc = {};
-		rDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		rDesc.Format = m_renderTargetFormat;
 		rDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 		rDesc.Texture2D.MipSlice = 0;
 		rDesc.Texture2D.PlaneSlice = 0;
@@ -292,9 +354,7 @@ bool Renderer::createRenderTargetView()
 
 void Renderer::setBackColor(float r, float g, float b)
 {
-	m_backColor[0] = r;
-	m_backColor[1] = g;
-	m_backColor[2] = b;
+	m_backColor = XMFLOAT3(r, g, b);
 }
 
 bool Renderer::createFence()
@@ -369,3 +429,378 @@ void Renderer::setResourceBarrier(D3D12_RESOURCE_STATES stateBefore,
 	m_cmdList->ResourceBarrier(1, &desc);
 }
 
+bool Renderer::createResourceBuffer(ID3D12Resource** buffer, UINT64 bSize)
+{
+	// ビデオメモリ上にバッファを生成（C言語のmalloc関数のようなもの）
+	// buffer： ID3D12Resourceのポインタのポインタ
+	// bSize： 生成するバッファのバイトサイズ
+	// バッファを生成するにはアクセス方法など様々な設定が必要
+	// D3D12_HEAP_PROPERTIES構造体でアクセス方法を設定
+	// D3D12_RESOURCE_DESC構造体： バッファがどのようなデータか設定
+	// 1次元データとしてバッファを設定（D3D12_RESOURCE_DESC構造体）
+	D3D12_HEAP_PROPERTIES heapProp = {};
+	heapProp.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	desc.Width = bSize;
+	desc.Height = 1;
+	desc.DepthOrArraySize = 1;
+	desc.MipLevels = 1;
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+
+	HRESULT hr = m_device->CreateCommittedResource(
+		&heapProp, D3D12_HEAP_FLAG_NONE, &desc,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+		IID_PPV_ARGS(buffer));
+
+	return SUCCEEDED(hr);
+}
+
+bool Renderer::uploadResourceBuffer(ID3D12Resource* buffer, void* src, size_t bSize,
+	void** map)
+{
+	// Mapを用いてバッファにデータを転送
+	// ID3D12ResourceのMapメソッドを用い、アクセスに使うポインタのポインタを渡すことでバッファにアクセス可能となる
+	// 転送が終わったあとはUnmapメソッドでMapの状態を解消する
+	// buffer： 転送先のバッファ
+	// src： 転送元データのポインタ（汎用ポインタvoid* とし、どのようなデータでも対応可にする）
+	// bSize： 転送するデータのバイトサイズ
+	// map： Mapした際のポインタを維持するためのポインタのポインタ
+	// Mapした後でUnmapせずにポインタを介してデータ転送を行えるようにする
+	// mapがnullptrの場合はUnmapする
+	// Mapした際のポインタを介して、通常の方法でデータの書き込みが可能
+	// ここではデータコピーのmemcpy関数を用いてsrcの場所にあるデータをbSizeバイト分コピーする
+	// 形でバッファにデータを転送
+	if (map != nullptr)
+	{
+		*map = nullptr;
+		HRESULT hr = buffer->Map(0, nullptr, map);
+		if (FAILED(hr) || *map == nullptr) return false;
+		memcpy(*map, src, bSize);
+	}
+	else
+	{
+		void* pmap = nullptr;
+		HRESULT hr = buffer->Map(0, nullptr, &pmap);
+		if (FAILED(hr) || pmap == nullptr) return false;
+		memcpy(pmap, src, bSize);
+		buffer->Unmap(0, nullptr);
+	}
+	return true;
+}
+
+void Renderer::setVertexBufferView(D3D12_VERTEX_BUFFER_VIEW& vertexBufferView,
+	ID3D12Resource* buffer, UINT bSize, UINT stride)
+{
+	// D3D12_VERTEX_BUFFER_VIEW構造体： 頂点バッファの用途を記述するビューの構造体
+	// vertexBufferView： 頂点バッファのビュー構造体
+	// buffer： 関連付ける頂点バッファ
+	// bSize： 頂点バッファ全体のバイトサイズ
+	// stride： 1頂点のバイトサイズ
+	vertexBufferView.BufferLocation = buffer->GetGPUVirtualAddress();
+	vertexBufferView.SizeInBytes = bSize;
+	vertexBufferView.StrideInBytes = stride;
+}
+
+bool Renderer::readShaderObject(const wchar_t* shaderPath, ID3DBlob** shaderObj)
+{
+	//シェーダオブジェクトをデータの塊としてID3DBlobに読込む
+	HRESULT hr = D3DReadFileToBlob(shaderPath, shaderObj);
+
+	return SUCCEEDED(hr);
+}
+
+bool Renderer::createRootSignature(ID3D12RootSignature** rootSig)
+{
+	// D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBER_INPUT_LAYOUTをを設定し、入力レイアウトを有効
+	// blob： ルートシグネチャの設定をデータ化したデータの塊
+	// D3D12SerializeRootSignature関数で設定をシリアライズ化（データの塊を生成）
+	// CreateRootSignatureメソッドでシリアライズ化したデータでルートシグネチャを生成
+	D3D12_ROOT_SIGNATURE_DESC desc = {};
+	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	D3D12_DESCRIPTOR_RANGE range = {};
+	range.NumDescriptors = 1;
+	range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	range.BaseShaderRegister = 0;
+	range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	D3D12_ROOT_PARAMETER param = {};
+	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	param.DescriptorTable.pDescriptorRanges = &range;
+	param.DescriptorTable.NumDescriptorRanges = 1;
+	
+	desc.pParameters = &param;
+	desc.NumParameters = 1;
+
+	D3D12_STATIC_SAMPLER_DESC sampler = {};
+	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+	sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
+	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+	sampler.MinLOD = 0.0f;
+	sampler.MaxLOD = D3D12_FLOAT32_MAX;
+	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+
+	desc.pStaticSamplers = &sampler;
+	desc.NumStaticSamplers = 1;
+
+	ComPtr<ID3DBlob> blob;
+	HRESULT hr = D3D12SerializeRootSignature(
+		&desc, D3D_ROOT_SIGNATURE_VERSION_1_0,
+		blob.GetAddressOf(), nullptr);
+	if (FAILED(hr)) return false;
+
+	hr = m_device->CreateRootSignature(
+		0, blob->GetBufferPointer(), blob->GetBufferSize(),
+		IID_PPV_ARGS(rootSig));
+
+	return SUCCEEDED(hr);
+}
+
+bool Renderer::createGPipelineState(ID3D12PipelineState** pso,
+	ID3D12RootSignature* rootSig, DXGI_FORMAT renderTargetFormat,
+	const wchar_t* vertexShaderPath, const wchar_t* pixelShaderPath,
+	D3D12_INPUT_ELEMENT_DESC* inputLayouts, UINT layoutNum)
+{
+	// D3D12_GRAPHICS_PIPELINE_STATE_DESC： PSOの設定構造体
+	// vsBlob： 頂点シェーダのオブジェクト、psBlob： ピクセルシェーダのオブジェクト
+	// pDesc.VS： 頂点シェーダのオブジェクトのポインタとサイズを設定
+	// pDesc.PS： ピクセルシェーダのオブジェクトのポインタとサイズを設定
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC pDesc = {};
+
+	ComPtr<ID3DBlob> vsBlob;
+	ComPtr<ID3DBlob> psBlob;
+	if (!readShaderObject(vertexShaderPath, vsBlob.GetAddressOf())) return false;
+	if (!readShaderObject(pixelShaderPath, psBlob.GetAddressOf())) return false;
+	
+	pDesc.VS.pShaderBytecode = vsBlob->GetBufferPointer();
+	pDesc.VS.BytecodeLength = vsBlob->GetBufferSize();
+	pDesc.PS.pShaderBytecode = psBlob->GetBufferPointer();
+	pDesc.PS.BytecodeLength = psBlob->GetBufferSize();
+
+	// D3D12_RENDER_TARGET_BLEND_DESC： ブレンディング処理などの設定構造体
+	// pDesc.BlendState： ブレンディング関連の設定
+
+	pDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+
+	D3D12_RENDER_TARGET_BLEND_DESC rtDesc = {};
+	rtDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	rtDesc.LogicOpEnable = FALSE;
+	rtDesc.BlendEnable = FALSE;
+
+	pDesc.BlendState.AlphaToCoverageEnable = FALSE;
+	pDesc.BlendState.IndependentBlendEnable = FALSE;
+	pDesc.BlendState.RenderTarget[0] = rtDesc;
+
+
+	// ラスタライザの設定
+
+	pDesc.RasterizerState.MultisampleEnable = FALSE;
+	pDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	pDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+	pDesc.RasterizerState.DepthClipEnable = TRUE;
+	pDesc.RasterizerState.FrontCounterClockwise = FALSE;
+	pDesc.RasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+	pDesc.RasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+	pDesc.RasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	pDesc.RasterizerState.AntialiasedLineEnable = FALSE;
+	pDesc.RasterizerState.ForcedSampleCount = 0;
+	pDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+	// pDesc.DepthStencilState： 深度バッファ関連の設定
+	// pDesc.InputLayout： 入力レイアウトの配列と要素数を設定
+	// pDesc.IBStripCutValue： インデックスバッファに関する設定
+	// pDesc.PrimitiveTopologyType： トポロジー設定（三角形ポリゴンを指定）
+
+	pDesc.DepthStencilState.DepthEnable = FALSE;
+	pDesc.DepthStencilState.StencilEnable = FALSE;
+
+	pDesc.InputLayout.pInputElementDescs = inputLayouts;
+	pDesc.InputLayout.NumElements = layoutNum;
+
+	pDesc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
+	pDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+	// pDesc.NumRenderTargets： レンダーターゲットの個数
+	// pDesc.RTVFormats： レンダーターゲットのフォーマット
+	// pDesc.SampleDesc： サンプリングの設定
+	// pDesc.pRootSignature： 使用するルートシグネチャのポインタ
+	// CreateGraphicsPipelineStateメソッド： PSOを生成
+
+	pDesc.NumRenderTargets = 1;
+	pDesc.RTVFormats[0] = renderTargetFormat;
+
+	pDesc.SampleDesc.Count = 1;
+	pDesc.SampleDesc.Quality = 0;
+
+	pDesc.pRootSignature = rootSig;
+	
+	HRESULT hr = m_device->CreateGraphicsPipelineState(&pDesc,
+		IID_PPV_ARGS(pso));
+
+	return SUCCEEDED(hr);
+}
+
+void Renderer::setViewport(D3D12_VIEWPORT& viewport)
+{
+	// MinDepthメンバ、MaxDepthメンバで奥行き方向の範囲を0.0f～1.0fに設定
+
+	viewport.Width = (float)m_game->getWidth();
+	viewport.Height = (float)m_game->getHeight();
+	viewport.TopLeftX = 0.0f;
+	viewport.TopLeftY = 0.0f;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+}
+
+void Renderer::setScissorRect(D3D12_RECT& scissor)
+{
+	scissor.left = 0;
+	scissor.top = 0;
+	scissor.right = (LONG)m_game->getWidth();
+	scissor.bottom = (LONG)m_game->getHeight();
+}
+
+void Renderer::draw()
+{
+	// SetPipelineStateメソッド： PSOの設定コマンド
+	// グラフィックスパイプライン周りの設定はほぼPSOだけで切り替えられる
+	// SetGraphicsRootSignatureメソッド： ルートシグネチャの設定コマンド
+	// IASetPrimitiveTopologyメソッド： ポリゴンの描画方法を設定コマンド
+	// D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST： 独立した三角形を1個ずつ描画
+	// IASetVertexBuffersメソッド： 描画に使う頂点バッファビューの設定コマンド
+	// インデックスバッファによりポリゴンを描画するにはDrawIndexedInstancedメソッドを用いる
+	
+	m_cmdList->SetPipelineState(m_simplePSO.Get());
+	m_cmdList->SetGraphicsRootSignature(m_simpleRootSig.Get());
+
+	m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	m_cmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
+	m_cmdList->IASetIndexBuffer(&m_indexBufferView);
+	m_cmdList->SetDescriptorHeaps(1, m_scDescHeap.GetAddressOf());
+	m_cmdList->SetGraphicsRootDescriptorTable(0,
+		m_scDescHeap->GetGPUDescriptorHandleForHeapStart());
+
+	m_cmdList->DrawIndexedInstanced(6, 1, 0, 0, 0);
+}
+
+void Renderer::setIndexBufferView(D3D12_INDEX_BUFFER_VIEW& indexBufferView,
+	ID3D12Resource* buffer, UINT bSize)
+{
+	// indexBufferView： 設定するインデックスバッファビューの構造体
+	// buffer： 関連付けるインデックスバッファ
+	// bSize： インデックスバッファのバイトサイズ
+	// Formatメンバにインデックスの型に対応したフォーマットを設定
+	// DXGI_FORMAT_R16_UINT： R16は1成分のみの16bit、UINTは非負の整数型であることを示す
+
+	indexBufferView.BufferLocation = buffer->GetGPUVirtualAddress();
+	indexBufferView.SizeInBytes = bSize;
+	indexBufferView.Format = DXGI_FORMAT_R16_UINT;
+
+}
+
+bool Renderer::createShaderResource(ID3D12Resource** buffer, UINT width, UINT height,
+	DXGI_FORMAT format, UINT16 mipLevels, UINT16 depthOrArraySize,
+	D3D12_RESOURCE_DIMENSION dimension)
+{
+	D3D12_HEAP_PROPERTIES prop = {};
+	prop.Type = D3D12_HEAP_TYPE_CUSTOM;
+	prop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_WRITE_BACK;
+	prop.MemoryPoolPreference = D3D12_MEMORY_POOL_L0;
+
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Dimension = dimension;
+	desc.Width = width;
+	desc.Height = height;
+	desc.DepthOrArraySize = depthOrArraySize;
+	desc.MipLevels = mipLevels;
+	desc.Format = format;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+
+	HRESULT hr = m_device->CreateCommittedResource(
+		&prop, D3D12_HEAP_FLAG_NONE,
+		&desc, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+		nullptr, IID_PPV_ARGS(buffer));
+
+	return SUCCEEDED(hr);
+}
+
+bool Renderer::uploadShaderResource(ID3D12Resource* buffer, void* src,
+	UINT lineSize, UINT allSize)
+{
+	HRESULT hr = buffer->WriteToSubresource(0, nullptr,
+		src, lineSize, allSize);
+
+	return SUCCEEDED(hr);
+}
+
+bool Renderer::createDescHeap(ID3D12DescriptorHeap** dHeap, UINT dNum)
+{
+	D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+	desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	desc.NodeMask = 0;
+	desc.NumDescriptors = dNum;
+	desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	HRESULT hr = m_device->CreateDescriptorHeap(
+		&desc, IID_PPV_ARGS(dHeap));
+
+	return SUCCEEDED(hr);
+}
+
+void Renderer::setShaderResourceView(ID3D12Resource* buffer, DXGI_FORMAT format,
+	ID3D12DescriptorHeap* dHeap, UINT index)
+{
+	D3D12_SHADER_RESOURCE_VIEW_DESC desc = {};
+	desc.Format = format;
+	desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	desc.Texture2D.MipLevels = 1;
+
+	auto handle = dHeap->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += m_csuIncSize * index;
+	m_device->CreateShaderResourceView(buffer, &desc, handle);
+}
+
+bool Renderer::readImageFile(ID3D12Resource** buffer, TexMetadata& metadata,
+	const wchar_t* filePath, bool ddsFlag)
+{
+	ScratchImage img = {};
+
+	HRESULT hr;
+	if (ddsFlag)
+	{
+		hr = LoadFromDDSFile(filePath, DDS_FLAGS_NONE, &metadata, img);
+	}
+	else
+	{
+		hr = LoadFromWICFile(filePath, WIC_FLAGS_NONE, &metadata, img);
+	}
+	if (FAILED(hr)) return false;
+
+	if (!createShaderResource(buffer, (UINT)metadata.width,
+		(UINT)metadata.height, metadata.format,
+		(UINT16)metadata.mipLevels, (UINT16)metadata.arraySize,
+		(D3D12_RESOURCE_DIMENSION)metadata.dimension)) return false;
+
+	auto image = img.GetImage(0, 0, 0);
+	if (!uploadShaderResource(*buffer, image->pixels, (UINT)image->rowPitch,
+		(UINT)image->slicePitch)) return false;
+
+	return true;
+}

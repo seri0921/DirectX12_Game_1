@@ -6,6 +6,12 @@ const Vector2d Ones2d(1.0f, 1.0f);
 const Vector2d UnitVecX2d(1.0f, 0.0f);
 const Vector2d UnitVecY2d(0.0f, 1.0f);
 
+const XMFLOAT3 ZeroVec3d(0.0f, 0.0f, 0.0f);
+const XMFLOAT3 Ones3d(1.0f, 1.0f, 1.0f);
+const XMFLOAT3 UnitVecX3d(1.0f, 0.0f, 0.0f);
+const XMFLOAT3 UnitVecY3d(0.0f, 1.0f, 0.0f);
+const XMFLOAT3 UnitVecZ3d(0.0f, 0.0f, 1.0f);
+
 const float PI = 3.14159265f;
 
 Vector2d Vector2d::operator +(const Vector2d& a) const

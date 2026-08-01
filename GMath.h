@@ -2,6 +2,9 @@
 
 #include <cmath>
 
+#include <DirectXMath.h>
+using namespace DirectX;
+
 // 2次元ベクトル
 struct Vector2d
 {
@@ -38,6 +41,12 @@ extern const Vector2d ZeroVec2d;
 extern const Vector2d Ones2d;
 extern const Vector2d UnitVecX2d;
 extern const Vector2d UnitVecY2d;
+
+extern const XMFLOAT3 ZeroVec3d;
+extern const XMFLOAT3 Ones3d;
+extern const XMFLOAT3 UnitVecX3d;
+extern const XMFLOAT3 UnitVecY3d;
+extern const XMFLOAT3 UnitVecZ3d;
 
 extern const float PI;
 

@@ -1,4 +1,24 @@
 #include "GameUtil.h"
+#include "Game.h"
+
+// カラーベクトルの定数
+const XMFLOAT3 ColorWhite(1.0f, 1.0f, 1.0f);
+const XMFLOAT3 ColorBlack(0.0f, 0.0f, 0.0f);
+const XMFLOAT3 ColorGray(0.5f, 0.5f, 0.5f);
+const XMFLOAT3 ColorRed(1.0f, 0.0f, 0.0f);
+const XMFLOAT3 ColorGreen(0.0f, 1.0f, 0.0f);
+const XMFLOAT3 ColorBlue(0.0f, 0.0f, 1.0f);
+const XMFLOAT3 ColorYellow(1.0f, 1.0f, 0.0f);
+const XMFLOAT3 ColorCyan(0.0f, 1.0f, 1.0f);
+const XMFLOAT3 ColorMagenta(1.0f, 0.0f, 1.0f);
+
+ColorRGBA::ColorRGBA(XMFLOAT3 color, float alpha)
+	: r((unsigned char)(255.0f * color.x))
+	, g((unsigned char)(255.0f * color.y))
+	, b((unsigned char)(255.0f * color.z))
+	, a((unsigned char)(255.0f * alpha))
+{
+}
 
 // 点と円の衝突（内外）判定
 bool detectPointToCircleCollision(Vector2d& p, Circle& c)
@@ -94,4 +114,17 @@ void printNum(const wchar_t* str, int num)
 	static wchar_t buf[1024];
 	wsprintfW(buf, str, num);
 	OutputDebugStringW(buf);
+}
+
+// ランダムノイズ画像の生成
+void createRandomNoizeImage(std::vector<ColorRGBA>& img, Game* game)
+{
+	// ColorRGBAのRGBカラー成分を0～255の一様乱数で設定
+	for (ColorRGBA& color : img)
+	{
+		color.r = (unsigned char)game->getRand(0, 255);
+		color.g = (unsigned char)game->getRand(0, 255);
+		color.b = (unsigned char)game->getRand(0, 255);
+		color.a = 255;
+	}
 }

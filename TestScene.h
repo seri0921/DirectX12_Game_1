@@ -14,7 +14,6 @@ public:
 	void draw() override;
 
 private:
-	std::unique_ptr<ColorAnimActor> m_colorAnim;
 
 };
 
