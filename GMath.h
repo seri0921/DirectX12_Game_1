@@ -37,6 +37,15 @@ float rad2deg(float theta);
 float dot(const Vector2d& a, const Vector2d& b);
 float cross(const Vector2d& a, const Vector2d& b);
 
+XMFLOAT3 operator+ (const XMFLOAT3& a, const XMFLOAT3& b);
+XMFLOAT3 operator- (const XMFLOAT3& a, const XMFLOAT3& b);
+XMFLOAT3 operator* (const XMFLOAT3& a, float b);
+XMFLOAT3 operator* (float a, const XMFLOAT3& b);
+
+void operator+= (XMFLOAT3& a, const XMFLOAT3& b);
+void operator-= (XMFLOAT3& a, const XMFLOAT3& b);
+void operator*= (XMFLOAT3& a, float b);
+
 extern const Vector2d ZeroVec2d;
 extern const Vector2d Ones2d;
 extern const Vector2d UnitVecX2d;

@@ -9,6 +9,7 @@
 #include <vector>
 #include "GMath.h"
 #include "GameUtil.h"
+#include "Camera.h"
 
 #include <wrl.h>
 using namespace Microsoft::WRL;
@@ -30,6 +31,11 @@ public:
 	void setBackColor(float r, float g, float b);
 	void setBackColor(XMFLOAT3 backColor) { m_backColor = backColor; }
 	XMFLOAT3 getBackColor() const { return m_backColor; }
+
+	void setCameraInParam(CamInParam inParam);
+	void setCameraExtParam(CamExtPram extParam);
+	void setCameraParam(CamInParam inParam, CamExtPram extParam);
+	XMMATRIX getCameraMatrix() const { return m_cameraMatrix; }
 
 	// 実験用
 	void draw();
@@ -64,12 +70,18 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_scDescHeap;
 	ComPtr<ID3D12Resource> m_textureBuffer;
 
+	Camera m_camera;
+	XMMATRIX m_cameraMatrix;
+
 	VertexUV m_vertices[4];
 	ComPtr<ID3D12Resource> m_vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
 	unsigned short m_indices[6];
 	ComPtr<ID3D12Resource> m_indexBuffer;
 	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
+
+	ComPtr<ID3D12Resource> m_constBuffer;
+	XMMATRIX* m_constBufferMap;
 
 	bool createFactory();
 	bool createCommandQueue();
@@ -104,6 +116,11 @@ private:
 		ID3D12DescriptorHeap* dHeap, UINT index);
 	bool readImageFile(ID3D12Resource** buffer, TexMetadata& metadata,
 		const wchar_t* filePath, bool ddsFlag = false);
+	bool createConstBuffer(ID3D12Resource** buffer, const void* src,
+		size_t dsize, void** pmap = nullptr);
+	void setConstBufferView(ID3D12Resource* buffer,
+		ID3D12DescriptorHeap* dHeap, UINT index);
+	UINT64 calcAlignment256(size_t size);
 	void setVertexBufferView(D3D12_VERTEX_BUFFER_VIEW& vertexBufferView,
 		ID3D12Resource* buffer, UINT bSize, UINT stride);
 	void setIndexBufferView(D3D12_INDEX_BUFFER_VIEW& indexBufferView,

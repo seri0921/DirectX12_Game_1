@@ -101,3 +101,44 @@ float cross(const Vector2d& a, const Vector2d& b)
 {
 	return a.x * b.y - a.y * b.x;
 }
+
+XMFLOAT3 operator+ (const XMFLOAT3& a, const XMFLOAT3& b)
+{
+	return XMFLOAT3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+
+XMFLOAT3 operator- (const XMFLOAT3& a, const XMFLOAT3& b)
+{
+	return XMFLOAT3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+XMFLOAT3 operator* (const XMFLOAT3& a, float b)
+{
+	return XMFLOAT3(a.x * b, a.y * b, a.z * b);
+}
+
+XMFLOAT3 operator* (float a, const XMFLOAT3& b)
+{
+	return XMFLOAT3(a * b.x, a * b.y, a * b.z);
+}
+
+void operator+= (XMFLOAT3& a, const XMFLOAT3& b)
+{
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+}
+
+void operator-= (XMFLOAT3& a, const XMFLOAT3& b)
+{
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+}
+
+void operator*= (XMFLOAT3& a, float b)
+{
+	a.x *= b;
+	a.y *= b;
+	a.z *= b;
+}

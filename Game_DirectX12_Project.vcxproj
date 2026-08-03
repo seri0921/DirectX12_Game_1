@@ -162,6 +162,7 @@
     <ClCompile Include="Actor.cpp" />
     <ClCompile Include="Actor2d.cpp" />
     <ClCompile Include="Actor3d.cpp" />
+    <ClCompile Include="Camera.cpp" />
     <ClCompile Include="ColorAnimActor.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GameUtil.cpp" />
@@ -177,6 +178,7 @@
     <ClInclude Include="Actor.h" />
     <ClInclude Include="Actor2d.h" />
     <ClInclude Include="Actor3d.h" />
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="ColorAnimActor.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameUtil.h" />

@@ -13,13 +13,17 @@ Renderer::Renderer(Game* game, XMFLOAT3 backColor)
 	, m_renderTargetFormat(DXGI_FORMAT_R8G8B8A8_UNORM)
 	, m_backColor{ backColor }
 	, m_fenceValues{ 0 }
+	, m_camera(CamInParam(90.0f, 0.01f, 1000.0f),
+		CamExtPram(ZeroVec3d, UnitVecZ3d, UnitVecY3d))
+	, m_cameraMatrix(XMMatrixIdentity())
 	, m_vertexBufferView{}
 	, m_indexBufferView{}
+	, m_constBufferMap(nullptr)
 {
-	m_vertices[0] = { { -0.525f, -0.7f, 0.0f }, { 0.0f, 1.0f } };
-	m_vertices[1] = { { -0.525f, 0.7f, 0.0f }, { 0.0f, 0.0f } };
-	m_vertices[2] = { { 0.525f, -0.7f, 0.0f }, { 1.0f, 1.0f } };
-	m_vertices[3] = { { 0.525f, 0.7f, 0.0f }, { 1.0f, 0.0f } };
+	m_vertices[0] = { { -1.0f, -1.0f, 10.0f }, { 0.0f, 1.0f } };
+	m_vertices[1] = { { -1.0f, 1.0f, 10.0f }, { 0.0f, 0.0f } };
+	m_vertices[2] = { { 1.0f, -1.0f, 10.0f }, { 1.0f, 1.0f } };
+	m_vertices[3] = { { 1.0f, 1.0f, 10.0f }, { 1.0f, 0.0f } };
 
 	m_indices[0] = 0;	m_indices[1] = 1;	m_indices[2] = 2;
 	m_indices[3] = 3;	m_indices[4] = 2;	m_indices[5] = 1;
@@ -79,7 +83,7 @@ bool Renderer::initialize()
 		6 * sizeof(unsigned short));
 
 	// シェーダーリソース用ディスクリプタヒープの生成
-	if (!createDescHeap(m_scDescHeap.GetAddressOf(), 1)) return false;
+	if (!createDescHeap(m_scDescHeap.GetAddressOf(), 2)) return false;
 
 	// 画像ファイルを読み込んでテクスチャを生成、ビューをセット
 	TexMetadata meta;
@@ -87,6 +91,18 @@ bool Renderer::initialize()
 		meta, L"src\\oreka.dds", true)) return false;
 	setShaderResourceView(m_textureBuffer.Get(), meta.format,
 		m_scDescHeap.Get(), 0);
+
+	// カメラ行列を計算
+	m_cameraMatrix = m_camera.calcViewProjMatrix(
+		(float)m_game->getWidth(), (float)m_game->getHeight());
+
+	// 定数バッファの生成とビューのセット
+	{
+		XMMATRIX mat = XMMatrixIdentity();
+		if (!createConstBuffer(m_constBuffer.GetAddressOf(), &m_cameraMatrix,
+			sizeof(XMMATRIX), (void**)&m_constBufferMap)) return false;
+		setConstBufferView(m_constBuffer.Get(), m_scDescHeap.Get(), 1);
+	}
 
 	return true;
 }
@@ -526,20 +542,30 @@ bool Renderer::createRootSignature(ID3D12RootSignature** rootSig)
 	D3D12_ROOT_SIGNATURE_DESC desc = {};
 	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
 
-	D3D12_DESCRIPTOR_RANGE range = {};
-	range.NumDescriptors = 1;
-	range.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	range.BaseShaderRegister = 0;
-	range.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+	D3D12_DESCRIPTOR_RANGE range[2] = {};
+	range[0].NumDescriptors = 1;
+	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+	range[0].BaseShaderRegister = 0;
+	range[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	D3D12_ROOT_PARAMETER param = {};
-	param.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	param.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	param.DescriptorTable.pDescriptorRanges = &range;
-	param.DescriptorTable.NumDescriptorRanges = 1;
+	range[1].NumDescriptors = 1;
+	range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	range[1].BaseShaderRegister = 0;
+	range[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	D3D12_ROOT_PARAMETER param[2] = {};
+	param[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	param[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+	param[0].DescriptorTable.pDescriptorRanges = &range[0];
+	param[0].DescriptorTable.NumDescriptorRanges = 1;
+
+	param[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	param[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	param[1].DescriptorTable.pDescriptorRanges = &range[1];
+	param[1].DescriptorTable.NumDescriptorRanges = 1;
 	
-	desc.pParameters = &param;
-	desc.NumParameters = 1;
+	desc.pParameters = param;
+	desc.NumParameters = 2;
 
 	D3D12_STATIC_SAMPLER_DESC sampler = {};
 	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
@@ -675,6 +701,15 @@ void Renderer::setScissorRect(D3D12_RECT& scissor)
 
 void Renderer::draw()
 {
+	// 上方向キー / 下方向キーで前後移動
+	// camPos： カメラ位置、angleY： カメラのY軸周りの角度[deg]、camPosとangleYは静的変数で用意
+	// キーボードの上下矢印キーで前進 / 後進（変数t）、左右矢印キーで旋回（変数r）
+	// ビュープロジェクション行列を定数バッファに送信
+	// angleY[deg]をXMConvertToRadians関数でrad単位に変換（theta）
+	// forward： カメラの正面方向の単位ベクトル
+	// tが1なら前進、0なら停止、 - 1なら後進
+	// カメラの外部パラメータcamを作り、setCameraExtParamメソッドで設定（m_cameraMatrixを再計算）
+
 	// SetPipelineStateメソッド： PSOの設定コマンド
 	// グラフィックスパイプライン周りの設定はほぼPSOだけで切り替えられる
 	// SetGraphicsRootSignatureメソッド： ルートシグネチャの設定コマンド
@@ -682,7 +717,30 @@ void Renderer::draw()
 	// D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST： 独立した三角形を1個ずつ描画
 	// IASetVertexBuffersメソッド： 描画に使う頂点バッファビューの設定コマンド
 	// インデックスバッファによりポリゴンを描画するにはDrawIndexedInstancedメソッドを用いる
-	
+
+	// カメラ移動機能
+	static XMFLOAT3 camPos = ZeroVec3d;
+	static float angleY = 0.0f;
+
+	const Keyboard& keyboard = m_game->getKeyboard();
+	int t = 0, r = 0;
+	if (keyboard.isDown(VK_UP)) ++t;
+	if (keyboard.isDown(VK_DOWN)) --t;
+	if (keyboard.isDown(VK_RIGHT)) --r;
+	if (keyboard.isDown(VK_LEFT)) ++r;
+
+	angleY += 5.0f * r;
+	float theta = XMConvertToRadians(angleY);
+	XMFLOAT3 forward = XMFLOAT3(std::sin(theta), 0.0f, std::cos(theta));
+	camPos += (0.1f * t) * forward;
+	CamExtPram cam;
+	cam.eye = camPos;
+	cam.target = camPos + forward;
+	cam.up = UnitVecY3d;
+	setCameraExtParam(cam);
+
+	*m_constBufferMap = m_cameraMatrix;
+
 	m_cmdList->SetPipelineState(m_simplePSO.Get());
 	m_cmdList->SetGraphicsRootSignature(m_simpleRootSig.Get());
 
@@ -690,8 +748,11 @@ void Renderer::draw()
 	m_cmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
 	m_cmdList->IASetIndexBuffer(&m_indexBufferView);
 	m_cmdList->SetDescriptorHeaps(1, m_scDescHeap.GetAddressOf());
-	m_cmdList->SetGraphicsRootDescriptorTable(0,
-		m_scDescHeap->GetGPUDescriptorHandleForHeapStart());
+	
+	auto handle = m_scDescHeap->GetGPUDescriptorHandleForHeapStart();
+	m_cmdList->SetGraphicsRootDescriptorTable(0, handle);
+	handle.ptr += m_csuIncSize;
+	m_cmdList->SetGraphicsRootDescriptorTable(1, handle);
 
 	m_cmdList->DrawIndexedInstanced(6, 1, 0, 0, 0);
 }
@@ -803,4 +864,101 @@ bool Renderer::readImageFile(ID3D12Resource** buffer, TexMetadata& metadata,
 		(UINT)image->slicePitch)) return false;
 
 	return true;
+}
+
+bool Renderer::createConstBuffer(ID3D12Resource** buffer, const void* src,
+	size_t dsize, void** pmap)
+{
+	// 定数バッファの生成とデータ転送をまとめたメソッド
+	// buffer： 定数バッファ
+	// src： 送信するデータのポインタ
+	// dsize： データのバイトサイズ
+	// pmap： マップへのポインタ（nullptrならUnmapする）
+	// 定数バッファのバイトサイズは256の倍数という制約があるので、calcAlignment256メソッドでサイズを
+	// 調整して定数バッファを生成
+
+	if (!createResourceBuffer(buffer, calcAlignment256(dsize))) return false;
+
+	if (pmap == nullptr)
+	{
+		void* map = nullptr;
+		HRESULT hr = (*buffer)->Map(0, nullptr, &map);
+		if (FAILED(hr) || map == nullptr) return false;
+		memcpy(map, src, dsize);
+		(*buffer)->Unmap(0, nullptr);
+	}
+	else
+	{
+		*pmap = nullptr;
+		HRESULT hr = (*buffer)->Map(0, nullptr, pmap);
+		if (FAILED(hr) || (*pmap) == nullptr) return false;
+		memcpy(*pmap, src, dsize);
+	}
+
+	return true;
+}
+
+void Renderer::setConstBufferView(ID3D12Resource* buffer,
+	ID3D12DescriptorHeap* dHeap, UINT index)
+{
+	// D3D12_CONST_BUFFER_VIEW_DESC： 定数バッファビューの設定構造体
+	// CreateConstantBufferViewメソッドで定数バッファを生成
+	// シェーダリソースと同じグループのディスクリプタヒープの中に配置
+	// buffer： 定数バッファ
+	// dHeap： ディスクリプタヒープ
+	// index： ビューを配置する要素番号（インデックス）
+
+	D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
+	desc.BufferLocation = buffer->GetGPUVirtualAddress();
+	desc.SizeInBytes = (UINT)buffer->GetDesc().Width;
+
+	auto handle = dHeap->GetCPUDescriptorHandleForHeapStart();
+	handle.ptr += index * m_csuIncSize;
+
+	m_device->CreateConstantBufferView(&desc, handle);
+}
+
+UINT64 Renderer::calcAlignment256(size_t size)
+{
+	// size： 指定のバイトサイズ
+	// sizeを下回らない最も近い256の倍数を計算
+	// ビット演算を使って計算している
+	// 0xffは255の16進数表記
+	// ~はビットの反転の演算子、~0xffで256の倍数を表す
+	// & 演算子はビットの論理積
+
+	UINT64 s = (UINT64)size;
+
+	return (size + 0xff) & ~0xff;
+}
+
+void Renderer::setCameraInParam(CamInParam inParam)
+{
+	// カメラの内部パラメータを変更
+	// カメラ情報を変更した際に、ビュープロジェクション行列を再計算
+
+	m_camera.setInParam(inParam);
+	m_cameraMatrix = m_camera.calcViewProjMatrix(
+		(float)m_game->getWidth(), (float)m_game->getHeight());
+}
+
+void Renderer::setCameraExtParam(CamExtPram extParam)
+{
+	// カメラの外部パラメータを変更
+	// カメラ情報を変更した際に、ビュープロジェクション行列を再計算
+
+	m_camera.setExtParam(extParam);
+	m_cameraMatrix = m_camera.calcViewProjMatrix(
+		(float)m_game->getWidth(), (float)m_game->getHeight());
+}
+
+void Renderer::setCameraParam(CamInParam inParam, CamExtPram extParam)
+{
+	// カメラの内部パラメータ、外部パラメータを変更
+	// カメラ情報を変更した際に、ビュープロジェクション行列を再計算
+
+	m_camera.setInParam(inParam);
+	m_camera.setExtParam(extParam);
+	m_cameraMatrix = m_camera.calcViewProjMatrix(
+		(float)m_game->getWidth(), (float)m_game->getHeight());
 }
