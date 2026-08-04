@@ -6,8 +6,9 @@ class SpriteActor : public Actor2d
 {
 public:
 	SpriteActor(class Scene* scene, const std::wstring& filePath,
-		const Vector2d& pos = ZeroVec2d, const Vector2d& vel = ZeroVec2d,
-		bool centerFlag = false);
+		const XMFLOAT2& pos = ZeroVec2d, const XMFLOAT2& vel = ZeroVec2d,
+		XMFLOAT2* spriteSize = nullptr, XMFLOAT2* uvSize = nullptr,
+		bool centerFlag = false, bool ddsFlag = false);
 	virtual ~SpriteActor();
 
 	virtual void update(float deltaTime) override;
@@ -18,7 +19,12 @@ public:
 protected:
 	std::wstring m_imgPath;
 	bool m_enabled;
-	Vector2d m_offset;
+	XMFLOAT2 m_offset;
+	ImageData m_imgData;
+	int m_modelIndex;
+	XMFLOAT2 m_spriteSize;
+	XMFLOAT2 m_uvSize;
+	bool m_center;
 
 };
 

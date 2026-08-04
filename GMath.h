@@ -5,37 +5,23 @@
 #include <DirectXMath.h>
 using namespace DirectX;
 
-// 2次元ベクトル
-struct Vector2d
-{
-	float x;
-	float y;
+XMFLOAT2 operator+ (const XMFLOAT2& a, const XMFLOAT2& b);
+XMFLOAT2 operator- (const XMFLOAT2& a, const XMFLOAT2& b);
+XMFLOAT2 operator* (const XMFLOAT2& a, float b);
+XMFLOAT2 operator* (float a, const XMFLOAT2& b);
 
-	Vector2d() : x(0.0f), y(0.0f){}
-	Vector2d(float ix, float iy) : x(ix), y(iy) {}
-	Vector2d(const Vector2d& v) : x(v.x), y(v.y) {}
+void operator+= (XMFLOAT2& a, const XMFLOAT2& b);
+void operator-= (XMFLOAT2& a, const XMFLOAT2& b);
+void operator*= (XMFLOAT2& a, float b);
 
-	Vector2d operator +(const Vector2d& a) const;
-	Vector2d operator -(const Vector2d& a) const;
-	Vector2d operator *(float a) const;
-	Vector2d operator +=(const Vector2d& a);
-	Vector2d operator -=(const Vector2d& a);
-	Vector2d operator *=(float a);
+float length(const XMFLOAT2& v);
+float lengthSq(const XMFLOAT2& v);
+XMFLOAT2 normalize(const XMFLOAT2& v);
 
-};
+XMFLOAT2 unitVecAngle(float theta);
 
-Vector2d operator *(float a, const Vector2d& v);
-
-float length(const Vector2d& v);
-float lengthSq(const Vector2d& v);
-Vector2d normalize(const Vector2d& v);
-
-Vector2d unitVecAngle(float theta);
-float deg2rad(float theta);
-float rad2deg(float theta);
-
-float dot(const Vector2d& a, const Vector2d& b);
-float cross(const Vector2d& a, const Vector2d& b);
+float dot(const XMFLOAT2& a, const XMFLOAT2& b);
+float cross(const XMFLOAT2& a, const XMFLOAT2& b);
 
 XMFLOAT3 operator+ (const XMFLOAT3& a, const XMFLOAT3& b);
 XMFLOAT3 operator- (const XMFLOAT3& a, const XMFLOAT3& b);
@@ -46,17 +32,15 @@ void operator+= (XMFLOAT3& a, const XMFLOAT3& b);
 void operator-= (XMFLOAT3& a, const XMFLOAT3& b);
 void operator*= (XMFLOAT3& a, float b);
 
-extern const Vector2d ZeroVec2d;
-extern const Vector2d Ones2d;
-extern const Vector2d UnitVecX2d;
-extern const Vector2d UnitVecY2d;
+extern const XMFLOAT2 ZeroVec2d;
+extern const XMFLOAT2 Ones2d;
+extern const XMFLOAT2 UnitVecX2d;
+extern const XMFLOAT2 UnitVecY2d;
 
 extern const XMFLOAT3 ZeroVec3d;
 extern const XMFLOAT3 Ones3d;
 extern const XMFLOAT3 UnitVecX3d;
 extern const XMFLOAT3 UnitVecY3d;
 extern const XMFLOAT3 UnitVecZ3d;
-
-extern const float PI;
 
 

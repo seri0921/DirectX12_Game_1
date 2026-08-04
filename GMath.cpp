@@ -1,10 +1,10 @@
 #include "GMath.h"
 #include <cfloat>
 
-const Vector2d ZeroVec2d(0.0f, 0.0f);
-const Vector2d Ones2d(1.0f, 1.0f);
-const Vector2d UnitVecX2d(1.0f, 0.0f);
-const Vector2d UnitVecY2d(0.0f, 1.0f);
+const XMFLOAT2 ZeroVec2d(0.0f, 0.0f);
+const XMFLOAT2 Ones2d(1.0f, 1.0f);
+const XMFLOAT2 UnitVecX2d(1.0f, 0.0f);
+const XMFLOAT2 UnitVecY2d(0.0f, 1.0f);
 
 const XMFLOAT3 ZeroVec3d(0.0f, 0.0f, 0.0f);
 const XMFLOAT3 Ones3d(1.0f, 1.0f, 1.0f);
@@ -14,90 +14,74 @@ const XMFLOAT3 UnitVecZ3d(0.0f, 0.0f, 1.0f);
 
 const float PI = 3.14159265f;
 
-Vector2d Vector2d::operator +(const Vector2d& a) const
+XMFLOAT2 operator+ (const XMFLOAT2& a, const XMFLOAT2& b)
 {
-	return Vector2d(this->x + a.x, this->y + a.y);
+	return XMFLOAT2(a.x + b.x, a.y + b.y);
 }
 
-Vector2d Vector2d::operator -(const Vector2d& a) const
+XMFLOAT2 operator- (const XMFLOAT2& a, const XMFLOAT2& b)
 {
-	return Vector2d(this->x - a.x, this->y - a.y);
+	return XMFLOAT2(a.x - b.x, a.y - b.y);
 }
 
-Vector2d Vector2d::operator *(float a) const
+XMFLOAT2 operator* (const XMFLOAT2& a, float b)
 {
-	return Vector2d(this->x * a, this->y * a);
+	return XMFLOAT2(a.x * b, a.y * b);
 }
 
-Vector2d Vector2d::operator +=(const Vector2d& a)
+XMFLOAT2 operator* (float a, const XMFLOAT2& b)
 {
-	this->x += a.x;
-	this->y += a.y;
-	
-	return *this;
+	return XMFLOAT2(a * b.x, a * b.y);
 }
 
-Vector2d Vector2d::operator -=(const Vector2d& a)
+void operator+= (XMFLOAT2& a, const XMFLOAT2& b)
 {
-	this->x -= a.x;
-	this->y -= a.y;
-
-	return *this;
+	a.x += b.x;
+	a.y += b.y;
 }
 
-Vector2d Vector2d::operator *=(float a)
+void operator-= (XMFLOAT2& a, const XMFLOAT2& b)
 {
-	this->x *= a;
-	this->y *= a;
-
-	return *this;
+	a.x -= b.x;
+	a.y -= b.y;
 }
 
-Vector2d operator *(float a, const Vector2d& b)
+void operator*= (XMFLOAT2& a, float b)
 {
-	return Vector2d(a * b.x, a * b.y);
+	a.x *= b;
+	a.y *= b;
 }
 
-float length(const Vector2d& v)
+float length(const XMFLOAT2& v)
 {
 	return std::sqrt(v.x * v.x + v.y * v.y);
 }
 
-float lengthSq(const Vector2d& v)
+float lengthSq(const XMFLOAT2& v)
 {
 	return v.x * v.x + v.y * v.y;
 }
 
-Vector2d normalize(const Vector2d& v)
+XMFLOAT2 normalize(const XMFLOAT2& v)
 {
 	float len = length(v);
-	if (len < FLT_EPSILON) return Vector2d(0.0f, 0.0f);
+	if (len < FLT_EPSILON) return XMFLOAT2(0.0f, 0.0f);
 
 	float inLen = 1.0f / len;
 	return inLen * v;
 }
 
-Vector2d unitVecAngle(float theta)
+XMFLOAT2 unitVecAngle(float theta)
 {
-	return Vector2d(std::cos(theta), std::sin(theta));
+	return XMFLOAT2(std::cos(theta), std::sin(theta));
 }
 
-float deg2rad(float theta)
-{
-	return theta * PI / 180.0f;
-}
-
-float rad2deg(float theta)
-{
-	return theta * 180.0f / PI;
-}
-
-float dot(const Vector2d& a, const Vector2d& b)
+float dot(const XMFLOAT2& a, const XMFLOAT2& b)
 {
 	return a.x * b.x + a.y * b.y;
 }
 
-float cross(const Vector2d& a, const Vector2d& b)
+float cross(const XMFLOAT2& a, const XMFLOAT2& b)
 {
 	return a.x * b.y - a.y * b.x;
 }

@@ -16,18 +16,14 @@ Renderer::Renderer(Game* game, XMFLOAT3 backColor)
 	, m_camera(CamInParam(90.0f, 0.01f, 1000.0f),
 		CamExtPram(ZeroVec3d, UnitVecZ3d, UnitVecY3d))
 	, m_cameraMatrix(XMMatrixIdentity())
-	, m_vertexBufferView{}
-	, m_indexBufferView{}
-	, m_constBufferMap(nullptr)
+	, m_spriteMatrix(XMMatrixIdentity())
+	, m_spriteVertexBufferView{}
+	, m_constBufferMap{}
+	, m_textureNum(0)
+	, m_spriteDrawList(MaxObjectNum)
+	, m_spriteNum(0)
 {
-	m_vertices[0] = { { -1.0f, -1.0f, 10.0f }, { 0.0f, 1.0f } };
-	m_vertices[1] = { { -1.0f, 1.0f, 10.0f }, { 0.0f, 0.0f } };
-	m_vertices[2] = { { 1.0f, -1.0f, 10.0f }, { 1.0f, 1.0f } };
-	m_vertices[3] = { { 1.0f, 1.0f, 10.0f }, { 1.0f, 0.0f } };
-
-	m_indices[0] = 0;	m_indices[1] = 1;	m_indices[2] = 2;
-	m_indices[3] = 3;	m_indices[4] = 2;	m_indices[5] = 1;
-
+	
 }
 
 Renderer::~Renderer()
@@ -66,43 +62,31 @@ bool Renderer::initialize()
 		m_renderTargetFormat, L"shader\\simpleVS.cso", L"shader\\simplePS.cso",
 		inputLayouts, 2)) return false;
 
-	// 頂点バッファの生成
-	if (!createResourceBuffer(m_vertexBuffer.GetAddressOf(),
-		4 * sizeof(VertexUV))) return false;
-	if (!uploadResourceBuffer(m_vertexBuffer.Get(),
-		(void*)m_vertices, 4 * sizeof(VertexUV))) return false;
-	setVertexBufferView(m_vertexBufferView, m_vertexBuffer.Get(),
-		4 * sizeof(VertexUV), sizeof(VertexUV));
+	// スプライト用頂点バッファの生成
+	{
+		VertexUV vertices[4];
+		vertices[0] = { { -0.5f, -0.5f, 0.0f }, { 0.0f, 1.0f } };
+		vertices[1] = { { -0.5f, 0.5f, 0.0f }, { 0.0f, 0.0f } };
+		vertices[2] = { { 0.5f, -0.5f, 0.0f }, { 1.0f, 1.0f } };
+		vertices[3] = { { 0.5f, 0.5f, 0.0f}, { 1.0f, 0.0f } };
+		if (!createResourceBuffer(m_spriteVertexBuffer.GetAddressOf(),
+			4 * sizeof(VertexUV))) return false;
+		if (!uploadResourceBuffer(m_spriteVertexBuffer.Get(),
+			(void*)vertices, 4 * sizeof(VertexUV))) return false;
+		setVertexBufferView(m_spriteVertexBufferView, m_spriteVertexBuffer.Get(),
+			4 * sizeof(VertexUV), sizeof(VertexUV));
+	}
 
-	// インデックスバッファの生成
-	if (!createResourceBuffer(m_indexBuffer.GetAddressOf(),
-		6 * sizeof(unsigned short))) return false;
-	if (!uploadResourceBuffer(m_indexBuffer.Get(),
-		(void*)m_indices, 6 * sizeof(unsigned short))) return false;
-	setIndexBufferView(m_indexBufferView, m_indexBuffer.Get(),
-		6 * sizeof(unsigned short));
-
-	// シェーダーリソース用ディスクリプタヒープの生成
-	if (!createDescHeap(m_scDescHeap.GetAddressOf(), 2)) return false;
-
-	// 画像ファイルを読み込んでテクスチャを生成、ビューをセット
-	TexMetadata meta;
-	if (!readImageFile(m_textureBuffer.GetAddressOf(),
-		meta, L"src\\oreka.dds", true)) return false;
-	setShaderResourceView(m_textureBuffer.Get(), meta.format,
-		m_scDescHeap.Get(), 0);
+	// シェーダーリソース、定数バッファ用ディスクリプタヒープの生成
+	if (!createDescHeap(m_scDescHeap.GetAddressOf(), SCVViewNum)) return false;
 
 	// カメラ行列を計算
 	m_cameraMatrix = m_camera.calcViewProjMatrix(
 		(float)m_game->getWidth(), (float)m_game->getHeight());
 
-	// 定数バッファの生成とビューのセット
-	{
-		XMMATRIX mat = XMMatrixIdentity();
-		if (!createConstBuffer(m_constBuffer.GetAddressOf(), &m_cameraMatrix,
-			sizeof(XMMATRIX), (void**)&m_constBufferMap)) return false;
-		setConstBufferView(m_constBuffer.Get(), m_scDescHeap.Get(), 1);
-	}
+	// スプライト行列を計算
+	m_spriteMatrix =
+		calcSpriteMatrix((float)m_game->getWidth(), (float)m_game->getHeight());
 
 	return true;
 }
@@ -140,12 +124,20 @@ void Renderer::begin()
 
 void Renderer::end()
 {
+	// ディスクリプタヒープm_scDescHeapのセット
+	// 登録されたスプライトを一括描画
 	//　Closeメソッドでコマンドリストの描画命令を区切る
 	//　ExecuteCommandListsメソッドでコマンドキューにコマンドリストを送信
 	//　（コマンドリストに紐づいたコマンドアロケータに貯められたコマンド（命令群）が実行される）
 	//　コマンドリストは複数個送ることができるのでコマンドリストの配列の形で送ることに注意
 	//　スワップチェインのPresentメソッドでフリップ処理が行われ、描画対象のバッファが切り替わる
 	//　GetCurrentBackBufferIndexメソッドで次の描画対象のバッファのインデックスを取得
+
+	m_cmdList->SetDescriptorHeaps(1, m_scDescHeap.GetAddressOf());
+
+	// スプライト描画
+	drawBatchSprite();
+
 	setResourceBarrier(D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_STATE_PRESENT);
 	m_cmdList->Close();
@@ -699,64 +691,6 @@ void Renderer::setScissorRect(D3D12_RECT& scissor)
 	scissor.bottom = (LONG)m_game->getHeight();
 }
 
-void Renderer::draw()
-{
-	// 上方向キー / 下方向キーで前後移動
-	// camPos： カメラ位置、angleY： カメラのY軸周りの角度[deg]、camPosとangleYは静的変数で用意
-	// キーボードの上下矢印キーで前進 / 後進（変数t）、左右矢印キーで旋回（変数r）
-	// ビュープロジェクション行列を定数バッファに送信
-	// angleY[deg]をXMConvertToRadians関数でrad単位に変換（theta）
-	// forward： カメラの正面方向の単位ベクトル
-	// tが1なら前進、0なら停止、 - 1なら後進
-	// カメラの外部パラメータcamを作り、setCameraExtParamメソッドで設定（m_cameraMatrixを再計算）
-
-	// SetPipelineStateメソッド： PSOの設定コマンド
-	// グラフィックスパイプライン周りの設定はほぼPSOだけで切り替えられる
-	// SetGraphicsRootSignatureメソッド： ルートシグネチャの設定コマンド
-	// IASetPrimitiveTopologyメソッド： ポリゴンの描画方法を設定コマンド
-	// D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST： 独立した三角形を1個ずつ描画
-	// IASetVertexBuffersメソッド： 描画に使う頂点バッファビューの設定コマンド
-	// インデックスバッファによりポリゴンを描画するにはDrawIndexedInstancedメソッドを用いる
-
-	// カメラ移動機能
-	static XMFLOAT3 camPos = ZeroVec3d;
-	static float angleY = 0.0f;
-
-	const Keyboard& keyboard = m_game->getKeyboard();
-	int t = 0, r = 0;
-	if (keyboard.isDown(VK_UP)) ++t;
-	if (keyboard.isDown(VK_DOWN)) --t;
-	if (keyboard.isDown(VK_RIGHT)) --r;
-	if (keyboard.isDown(VK_LEFT)) ++r;
-
-	angleY += 5.0f * r;
-	float theta = XMConvertToRadians(angleY);
-	XMFLOAT3 forward = XMFLOAT3(std::sin(theta), 0.0f, std::cos(theta));
-	camPos += (0.1f * t) * forward;
-	CamExtPram cam;
-	cam.eye = camPos;
-	cam.target = camPos + forward;
-	cam.up = UnitVecY3d;
-	setCameraExtParam(cam);
-
-	*m_constBufferMap = m_cameraMatrix;
-
-	m_cmdList->SetPipelineState(m_simplePSO.Get());
-	m_cmdList->SetGraphicsRootSignature(m_simpleRootSig.Get());
-
-	m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_cmdList->IASetVertexBuffers(0, 1, &m_vertexBufferView);
-	m_cmdList->IASetIndexBuffer(&m_indexBufferView);
-	m_cmdList->SetDescriptorHeaps(1, m_scDescHeap.GetAddressOf());
-	
-	auto handle = m_scDescHeap->GetGPUDescriptorHandleForHeapStart();
-	m_cmdList->SetGraphicsRootDescriptorTable(0, handle);
-	handle.ptr += m_csuIncSize;
-	m_cmdList->SetGraphicsRootDescriptorTable(1, handle);
-
-	m_cmdList->DrawIndexedInstanced(6, 1, 0, 0, 0);
-}
-
 void Renderer::setIndexBufferView(D3D12_INDEX_BUFFER_VIEW& indexBufferView,
 	ID3D12Resource* buffer, UINT bSize)
 {
@@ -961,4 +895,197 @@ void Renderer::setCameraParam(CamInParam inParam, CamExtPram extParam)
 	m_camera.setExtParam(extParam);
 	m_cameraMatrix = m_camera.calcViewProjMatrix(
 		(float)m_game->getWidth(), (float)m_game->getHeight());
+}
+
+int Renderer::allocateConstBuffer(const void* pData, size_t dsize)
+{
+	// 未使用の定数バッファのインデックスを探索、満杯なら-1を返して終了
+	// 探索した管理インデックスの場所に定数バッファを生成
+	// ディスクリプタヒープm_scDescHeapの対応する場所に定数バッファビューを配置
+	// この段階ではシェーダリソースは割り当てないが、nullptrのシェーダリソースビューを配置しておく
+	// 成功したら定数バッファの管理インデックスを返す
+
+	int index = 0;
+	for (; index < MaxObjectNum; ++index)
+	{
+		if (m_constBuffer[index].Get() == nullptr) break;
+	}
+	if (index >= MaxObjectNum) return -1;
+
+	if (!createConstBuffer(m_constBuffer[index].GetAddressOf(),
+		pData, dsize, &m_constBufferMap[index])) 
+	{
+		return -1;
+	}
+
+	setConstBufferView(m_constBuffer[index].Get(), m_scDescHeap.Get(),
+		index * ViewNum);
+	for (int k = 0; k < TexViewNum; ++k)
+	{
+		setShaderResourceView(nullptr, DXGI_FORMAT_R8G8B8A8_UNORM,
+			m_scDescHeap.Get(), index * ViewNum + ConstViewNum + k);
+	}
+
+	return index;
+}
+
+void Renderer::uploadConstBuffer(int index, const void* pData, size_t dsize)
+{
+	// 定数バッファの管理インデックスが有効な範囲なら定数バッファをデータ送信
+
+	if (index < 0 || index >= MaxObjectNum) return;
+
+	memcpy(m_constBufferMap[index], pData, dsize);
+}
+
+void Renderer::releaseConstBuffer(int index)
+{
+	// 定数バッファの管理インデックスが有効な範囲かつ定数バッファのデータが存在する場合に実行
+	// 削除予定のリストm_constBufferReleaseListに記録するだけで即時解放はしない
+	// （注意）定数バッファをGPU側が描画処理に使用している可能性があるため
+	if (index < 0 || index >= MaxObjectNum) return;
+	if (m_constBuffer[index].Get() == nullptr) return;
+
+	m_constBufferReleaseList.push_back(std::make_pair(index, ReleaseCountStart));
+}
+
+void Renderer::update(float deltaTime)
+{
+	{
+		// 定数バッファの解放
+		auto it = m_constBufferReleaseList.begin();
+		while (it != m_constBufferReleaseList.end())
+		{
+			(*it).second -= 1;
+			if ((*it).second <= 0)
+			{
+				int index = (*it).first;
+				m_constBuffer[index]->Unmap(0, nullptr);
+				m_constBuffer[index].Reset();
+				it = m_constBufferReleaseList.erase(it);
+			}
+			else
+			{
+				++it;
+			}
+		}
+	}
+}
+
+ImageData Renderer::allocateShaderResource(const std::wstring& filePath,
+	bool ddsFlag)
+{
+	// 連想配列（m_textures）を探索し、発見したらそのImageData構造体を返して終了
+	// 存在しない場合は未使用のシェーダリソースの管理インデックスを探索し、シェーダリソースを生成
+
+	auto it = m_textures.find(filePath);
+	if (it != m_textures.end()) return (*it).second;
+
+	ImageData imgData;
+	if (m_textureNum >= MaxTextureNum) return imgData;
+
+	int index = 0;
+	while (index < MaxTextureNum)
+	{
+		if (m_textureBuffer[index].Get() == nullptr) break;
+		++index;
+	}
+	if (index >= MaxTextureNum) return imgData;
+
+	TexMetadata metadata = {};
+	if (!readImageFile(m_textureBuffer[index].GetAddressOf(),
+		metadata, filePath.c_str(), ddsFlag)) return imgData;
+
+	imgData.imgIndex = index;
+	imgData.width = (int)metadata.width;
+	imgData.height = (int)metadata.height;
+	imgData.filePath = filePath;
+	imgData.format = metadata.format;
+	m_textures[filePath] = imgData;
+
+	return imgData;
+}
+
+void Renderer::setMaterialSlot(int index, int slotNum, const ImageData& imgData)
+{
+	// 指定の場所（slotNum）にシェーダリソースビューを配置
+	// 1回の描画で使用できるシェーダリソース（テクスチャ）が0～TexViewNumまで対応可能
+
+	if (index < 0 || index >= MaxObjectNum) return;
+	if (slotNum < 0 || slotNum >= TexViewNum) return;
+
+	setShaderResourceView(m_textureBuffer[imgData.imgIndex].Get(),
+		imgData.format, m_scDescHeap.Get(), index * ViewNum + ConstViewNum + slotNum);
+}
+
+bool Renderer::drawSprite(int modelIndex, ImageData imgData,
+	XMFLOAT2 pos, float theta, XMFLOAT2* scale, XMFLOAT2 offset,
+	XMFLOAT2 imgPos, XMFLOAT2* imgScale)
+{
+	// スプライト描画の最大数を超えた場合は処理しない
+	// scale、imgScaleがnullptrならテクスチャの実サイズ（画像サイズ）を使用
+	// SpriteTransDataを容易し、スプライトの変換行列を計算
+
+	if (m_spriteNum >= MaxObjectNum) return false;
+
+	XMFLOAT2 texSize = (scale != nullptr) ? *scale
+		: XMFLOAT2((float)imgData.width, (float)imgData.height);
+	XMFLOAT2 uvSize = (imgScale != nullptr) ? *imgScale
+		: XMFLOAT2((float)imgData.width, (float)imgData.height);
+
+	SpriteTransData mat;
+	mat.posMat =
+		calcSpriteModelMatrix(texSize, pos, offset, theta) * m_spriteMatrix;
+	mat.uvMat = calcSpriteUVMatrix(imgPos, uvSize.x, uvSize.y,
+		(float)imgData.width, (float)imgData.height);
+
+	memcpy(m_constBufferMap[modelIndex], (void*)&mat,
+		sizeof(SpriteTransData));
+	m_spriteDrawList[m_spriteNum] = SpriteDrawInfo(modelIndex);
+
+	m_spriteNum += 1;
+	return true;
+}
+
+void Renderer::setCommandCSBufferView(int index)
+{
+	// 定数バッファの管理インデックスindexに基づいてビューの配置位置を計算
+	// 定数バッファビューを1番のディスクリプタテーブルにバインド
+	// シェーダリソースビューを0番のディスクリプタテーブルにバインド
+
+	if (index < 0 || index >= MaxObjectNum) return;
+
+	int idx = ViewNum * index;
+	{
+		// 定数バッファビュー
+		auto handle = m_scDescHeap->GetGPUDescriptorHandleForHeapStart();
+		handle.ptr += idx * m_csuIncSize;
+		m_cmdList->SetGraphicsRootDescriptorTable(1, handle);
+	}
+	{
+		// シェーダーリソースビュー
+		auto handle = m_scDescHeap->GetGPUDescriptorHandleForHeapStart();
+		handle.ptr += (idx + ConstViewNum) * m_csuIncSize;
+		m_cmdList->SetGraphicsRootDescriptorTable(0, handle);
+	}
+}
+
+void Renderer::drawBatchSprite()
+{
+	// STRIPモードに設定
+	// ルートシグネチャ、PSO、スプライト用の頂点バッファビューを設定
+	// m_spriteDrawListに登録された定数バッファの管理インデックスからビューをバインドし、順番に
+	// スプライト（矩形ポリゴン）を描画
+	m_cmdList->SetPipelineState(m_simplePSO.Get());
+	m_cmdList->SetGraphicsRootSignature(m_simpleRootSig.Get());
+	m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	m_cmdList->IASetVertexBuffers(0, 1, &m_spriteVertexBufferView);
+
+	for (size_t i = 0; i < m_spriteNum; ++i)
+	{
+		setCommandCSBufferView(m_spriteDrawList[i].modelIndex);
+		m_cmdList->DrawInstanced(4, 1, 0, 0);
+	}
+
+	m_spriteNum = 0;
 }

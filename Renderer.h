@@ -17,6 +17,8 @@ using namespace Microsoft::WRL;
 #include <DirectXTex.h>
 #pragma comment(lib, "DirectXTex.lib")
 
+#include <unordered_map>
+
 class Renderer
 {
 public:
@@ -27,6 +29,7 @@ public:
 
 	void begin();
 	void end();
+	void update(float deltaTime);
 
 	void setBackColor(float r, float g, float b);
 	void setBackColor(XMFLOAT3 backColor) { m_backColor = backColor; }
@@ -37,14 +40,39 @@ public:
 	void setCameraParam(CamInParam inParam, CamExtPram extParam);
 	XMMATRIX getCameraMatrix() const { return m_cameraMatrix; }
 
-	// 実験用
-	void draw();
+	int allocateConstBuffer(const void* pData, size_t dsize);
+	void uploadConstBuffer(int index, const void* pData, size_t dsize);
+	void releaseConstBuffer(int index);
+
+	ImageData allocateShaderResource(const std::wstring& filePath,
+		bool ddsFlag = false);
+	void setMaterialSlot(int index, int slotNum, const ImageData& imgDate);
+
+	bool drawSprite(int modelIndex, ImageData imgData,
+		XMFLOAT2 pos, float theta = 0.0f,
+		XMFLOAT2* scale = nullptr, XMFLOAT2 offset = ZeroVec2d,
+		XMFLOAT2 imgPos = ZeroVec2d, XMFLOAT2* imgScale = nullptr);
 
 private:
 	class Game* m_game;
 
 	// FrameNum： バッファの個数を設定する定数（ダブルバッファリングを指定）
+	// MaxTextureNum： シェーダリソース（テクスチャ）の最大数
+	// ConstViewNum： CBVの個数（ 𝑛𝑐 ）、TexViewNum： SRVの個数（ 𝑛𝑠 ）
+	// ViewNum： 1回の描画（1個のメッシュ）で使用するビューの個数（ 𝑛𝑣 ）
+	// MaxObjectNum： 描画できるオブジェクトの最大数
+	// SCViewNum： m_scDescHeapのビューの個数（ 𝑛𝑎𝑙𝑙 ）
+
 	static const UINT FrameNum = 2;
+	static const UINT MaxTextureNum = 1000;
+	static const UINT ConstViewNum = 1;
+	static const UINT TexViewNum = 1;
+	static const UINT ViewNum = ConstViewNum + TexViewNum;
+	static const UINT MaxObjectNum = 10000;
+	static const UINT SCVViewNum = MaxObjectNum * ViewNum;
+
+	static const int ReleaseCountStart = 5;
+	std::vector<std::pair<int, int>> m_constBufferReleaseList;
 	
 	ComPtr<IDXGIFactory4> m_dxgiFactory;	// m_dxgiFactory： DXGIの機能を用いるために使用
 	D3D_FEATURE_LEVEL m_featureLevel;	// m_featureLevel： GPUの機能レベル
@@ -68,20 +96,29 @@ private:
 	ComPtr<ID3D12RootSignature> m_simpleRootSig;
 	ComPtr<ID3D12PipelineState> m_simplePSO;
 	ComPtr<ID3D12DescriptorHeap> m_scDescHeap;
-	ComPtr<ID3D12Resource> m_textureBuffer;
+	ComPtr<ID3D12Resource> m_textureBuffer[MaxTextureNum];
+
+	UINT m_textureNum;
+	std::unordered_map<std::wstring, ImageData> m_textures;
 
 	Camera m_camera;
 	XMMATRIX m_cameraMatrix;
+	XMMATRIX m_spriteMatrix;
 
-	VertexUV m_vertices[4];
-	ComPtr<ID3D12Resource> m_vertexBuffer;
-	D3D12_VERTEX_BUFFER_VIEW m_vertexBufferView;
-	unsigned short m_indices[6];
-	ComPtr<ID3D12Resource> m_indexBuffer;
-	D3D12_INDEX_BUFFER_VIEW m_indexBufferView;
+	ComPtr<ID3D12Resource> m_spriteVertexBuffer;
+	D3D12_VERTEX_BUFFER_VIEW m_spriteVertexBufferView;
 
-	ComPtr<ID3D12Resource> m_constBuffer;
-	XMMATRIX* m_constBufferMap;
+	ComPtr<ID3D12Resource> m_constBuffer[MaxObjectNum];
+	void* m_constBufferMap[MaxObjectNum];
+
+	struct SpriteDrawInfo
+	{
+		int modelIndex;
+		SpriteDrawInfo() : modelIndex(0) {}
+		SpriteDrawInfo(int model) : modelIndex(model) {}
+	};
+	std::vector<SpriteDrawInfo> m_spriteDrawList;
+	int m_spriteNum;
 
 	bool createFactory();
 	bool createCommandQueue();
@@ -133,5 +170,8 @@ private:
 		ID3D12RootSignature* rootSig, DXGI_FORMAT renderTargetFormat,
 		const wchar_t* vertexShaderPath, const wchar_t* pixelShaderPath,
 		D3D12_INPUT_ELEMENT_DESC* inputLayouts, UINT layoutNum);
+
+	void setCommandCSBufferView(int index);
+	void drawBatchSprite();
 };
 

@@ -4,6 +4,7 @@
 #include <Windows.h>
 #include <string>
 #include <vector>
+#include <dxgi.h>
 
 // 頂点データ (uv座標対応)
 struct VertexUV
@@ -41,37 +42,38 @@ extern const XMFLOAT3 ColorMagenta;
 // 円の表現
 struct Circle
 {
-	Vector2d pos;
+	XMFLOAT2 pos;
 	float radius;
 
 	Circle() : pos(ZeroVec2d), radius(1.0f) {}
-	Circle(Vector2d p, float r) : pos(p), radius(r) {}
+	Circle(XMFLOAT2 p, float r) : pos(p), radius(r) {}
 };
 
 // 矩形表現
 struct Box
 {
-	Vector2d pos;
+	XMFLOAT2 pos;
 	float width;
 	float height;
 
 	Box() : pos(ZeroVec2d), width(1.0f), height(1.0f) {}
-	Box(Vector2d p, float w, float h) : pos(p), width(w), height(h) {}
+	Box(XMFLOAT2 p, float w, float h) : pos(p), width(w), height(h) {}
 };
 
+// 線分表現
 struct Segment
 {
-	Vector2d start;
-	Vector2d end;
+	XMFLOAT2 start;
+	XMFLOAT2 end;
 
 	Segment() : start(ZeroVec2d), end(UnitVecX2d) {}
-	Segment(const Vector2d& s, const Vector2d& e) : start(s), end(e) {}
+	Segment(const XMFLOAT2& s, const XMFLOAT2& e) : start(s), end(e) {}
 };
 
 // 点と円の衝突（内外）判定
-bool detectPointToCircleCollision(Vector2d& p, Circle& c);
+bool detectPointToCircleCollision(XMFLOAT2& p, Circle& c);
 // 点と矩形の衝突（内外）判定
-bool detectPointToBoxCollision(Vector2d& p, Box& box);
+bool detectPointToBoxCollision(XMFLOAT2& p, Box& box);
 // 円と円の衝突判定
 bool detectCircleCollision(Circle& c1, Circle& c2);
 // 円と線分の衝突判定
@@ -84,17 +86,40 @@ void separateBoxToSegments(const Box& rect, Segment& left, Segment& right,
 // 画像情報構造体
 struct ImageData
 {
-	HBITMAP img;
+	int imgIndex;
 	int width;
 	int height;
+	std::wstring filePath;
+	DXGI_FORMAT format;
 
-	ImageData() : img(nullptr), width(0), height(0) {}
+	ImageData() : imgIndex(-1), width(0), height(0),
+		format(DXGI_FORMAT_R8G8B8A8_UNORM) {}
 };
 
-// 画像読み込み
-bool loadImageData(const std::wstring& filePath, ImageData& imgData);
-// 画像開放
-void releaseImageData(ImageData& imgData);
+// スプライト変換データ構造体
+struct SpriteTransData
+{
+	XMMATRIX posMat;
+	XMMATRIX uvMat;
+
+	SpriteTransData()
+		: posMat(XMMatrixIdentity()), uvMat(XMMatrixIdentity()) {}
+	SpriteTransData(XMMATRIX pos, XMMATRIX uv)
+		: posMat(pos), uvMat(uv) {}
+};
+
+// スプライト座標変換行列
+XMMATRIX calcSpriteMatrix(float width, float height);
+// スプライトモデル変換行列
+XMMATRIX calcSpriteModelMatrix(XMFLOAT2 sclae,
+	XMFLOAT2 pos, XMFLOAT2 offset, float theta);
+
+// スプライトのuv座標変換行列
+XMMATRIX calcSpriteUVMatrix(const XMFLOAT2& p1, float uw, float uh,
+	float imgW, float imgH);
+// スプライトのuv座標変換行列
+XMMATRIX calcSpriteUVMatrix(const XMFLOAT2& p1, const XMFLOAT2& p2,
+	float imgW, float imgH);
 
 // 数値情報を出力ウィンドウに表示
 void printNum(const wchar_t* str, int num);

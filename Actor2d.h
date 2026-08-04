@@ -5,17 +5,17 @@
 class Actor2d : public Actor
 {
 public:
-	Actor2d(class Scene* scene, const Vector2d& pos, const Vector2d& vel);
+	Actor2d(class Scene* scene, const XMFLOAT2& pos, const XMFLOAT2& vel);
 	virtual ~Actor2d();
 
-	void setPos(Vector2d p) { m_pos = p; }
-	Vector2d getPos() const { return m_pos; }
-	void setVel(Vector2d v) { m_vel = v; }
-	Vector2d getVel() const { return m_vel; }
+	void setPos(XMFLOAT2 p) { m_pos = p; }
+	XMFLOAT2 getPos() const { return m_pos; }
+	void setVel(XMFLOAT2 v) { m_vel = v; }
+	XMFLOAT2 getVel() const { return m_vel; }
 
 protected:
-	Vector2d m_pos;
-	Vector2d m_vel;
+	XMFLOAT2 m_pos;
+	XMFLOAT2 m_vel;
 
 };
 

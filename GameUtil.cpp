@@ -21,18 +21,18 @@ ColorRGBA::ColorRGBA(XMFLOAT3 color, float alpha)
 }
 
 // 点と円の衝突（内外）判定
-bool detectPointToCircleCollision(Vector2d& p, Circle& c)
+bool detectPointToCircleCollision(XMFLOAT2& p, Circle& c)
 {
-	Vector2d d = p - c.pos;
+	XMFLOAT2 d = p - c.pos;
 	if (lengthSq(d) <= c.radius * c.radius) return true;
 	return false;
 }
 
 // 点と矩形の衝突（内外）判定
-bool detectPointToBoxCollision(Vector2d& p, Box& box)
+bool detectPointToBoxCollision(XMFLOAT2& p, Box& box)
 {
-	Vector2d p1 = box.pos;
-	Vector2d p2 = box.pos + Vector2d(box.width, box.height);
+	XMFLOAT2 p1 = box.pos;
+	XMFLOAT2 p2 = box.pos + XMFLOAT2(box.width, box.height);
 	if (p.x < p1.x) return false;
 	if (p.x > p2.x) return false;
 	if (p.y < p1.y) return false;
@@ -43,7 +43,7 @@ bool detectPointToBoxCollision(Vector2d& p, Box& box)
 // 円と円の衝突判定
 bool detectCircleCollision(Circle& c1, Circle& c2)
 {
-	Vector2d d = c2.pos - c1.pos;
+	XMFLOAT2 d = c2.pos - c1.pos;
 	float th = c1.radius + c2.radius;
 	if (lengthSq(d) < th * th) return true;
 	return false;
@@ -52,12 +52,12 @@ bool detectCircleCollision(Circle& c1, Circle& c2)
 // 円と線分の衝突判定
 bool detectCircleToSegmentCollision(Circle& c, Segment& seg)
 {
-	Vector2d p = seg.end - seg.start;
-	Vector2d q = c.pos - seg.start;
+	XMFLOAT2 p = seg.end - seg.start;
+	XMFLOAT2 q = c.pos - seg.start;
 	float d = std::abs(cross(p, q) / length(p));
 	if (d > c.radius) return false;
 
-	Vector2d w = c.pos - seg.end;
+	XMFLOAT2 w = c.pos - seg.end;
 	float t = dot(p, q) * dot(-1.0f * p, w);
 	if (t >= 0.0f) return true;
 
@@ -71,42 +71,15 @@ bool detectCircleToSegmentCollision(Circle& c, Segment& seg)
 void separateBoxToSegments(const Box& rect, Segment& left, Segment& right,
 	Segment& top, Segment& bottom)
 {
-	Vector2d p1 = rect.pos;
-	Vector2d p2 = rect.pos + Vector2d(rect.width, 0.0f);
-	Vector2d p3 = rect.pos + Vector2d(0.0f, rect.height);
-	Vector2d p4 = rect.pos + Vector2d(rect.width, rect.height);
+	XMFLOAT2 p1 = rect.pos;
+	XMFLOAT2 p2 = rect.pos + XMFLOAT2(rect.width, 0.0f);
+	XMFLOAT2 p3 = rect.pos + XMFLOAT2(0.0f, rect.height);
+	XMFLOAT2 p4 = rect.pos + XMFLOAT2(rect.width, rect.height);
 
 	left = Segment(p1, p3);
 	right = Segment(p2, p4);
 	top = Segment(p1, p2);
 	bottom = Segment(p3, p4);
-}
-
-// 画像読み込み
-bool loadImageData(const std::wstring& filePath, ImageData& imgData)
-{
-	HANDLE hd = LoadImageW(nullptr, filePath.c_str(), IMAGE_BITMAP,
-		0, 0, LR_LOADFROMFILE | LR_CREATEDIBSECTION);
-	if (hd == nullptr) return false;
-
-	imgData.img = (HBITMAP)hd;
-
-	BITMAP bm;
-	GetObjectW(imgData.img, sizeof(BITMAP), &bm);
-	imgData.width = bm.bmWidth;
-	imgData.height = bm.bmHeight;
-	return true;
-}
-
-void releaseImageData(ImageData& imgData)
-{
-	if (imgData.img)
-	{
-		DeleteObject(imgData.img);
-		imgData.img = nullptr;
-	}
-	imgData.width = 0;
-	imgData.height = 0;
 }
 
 void printNum(const wchar_t* str, int num)
@@ -127,4 +100,58 @@ void createRandomNoizeImage(std::vector<ColorRGBA>& img, Game* game)
 		color.b = (unsigned char)game->getRand(0, 255);
 		color.a = 255;
 	}
+}
+
+XMMATRIX calcSpriteMatrix(float width, float height)
+{
+	// スプライト座標変換行列
+
+	XMMATRIX mat = XMMatrixIdentity();
+	mat.r[0].m128_f32[0] = 2.0f / width;
+	mat.r[1].m128_f32[1] = -2.0f / height;
+	mat.r[3].m128_f32[0] = -1.0f;
+	mat.r[3].m128_f32[1] = 1.0f;
+
+	return mat;
+}
+
+XMMATRIX calcSpriteModelMatrix(XMFLOAT2 scale,
+	XMFLOAT2 pos, XMFLOAT2 offset, float theta)
+{
+	// スプライトモデル変換行列
+
+	float t = XMConvertToRadians(theta);
+	float s = XMScalarSin(t);
+	float c = XMScalarCos(t);
+	XMMATRIX mat = XMMatrixIdentity();
+	mat.r[0].m128_f32[0] = scale.x * c;
+	mat.r[0].m128_f32[1] = scale.x * s;
+	mat.r[1].m128_f32[0] = scale.y * s;
+	mat.r[1].m128_f32[1] = -scale.y * c;
+	mat.r[3].m128_f32[0] = pos.x - offset.x * c + offset.y * s;
+	mat.r[3].m128_f32[1] = pos.y - offset.x * s - offset.y * c;
+
+	return mat;
+}
+
+XMMATRIX calcSpriteUVMatrix(const XMFLOAT2& p1, float uw, float uh,
+	float imgW, float imgH)
+{
+	// スプライトのuv座標変換行列
+
+	XMMATRIX mat = XMMatrixIdentity();
+	float iw = 1.0f / imgW;
+	float ih = 1.0f / imgH;
+	mat.r[0].m128_f32[0] = uw * iw;
+	mat.r[1].m128_f32[1] = uh * ih;
+	mat.r[3].m128_f32[0] = p1.x * iw;
+	mat.r[3].m128_f32[1] = p1.y * ih;
+
+	return mat;
+}
+
+XMMATRIX calcSpriteUVMatrix(const XMFLOAT2& p1, const XMFLOAT2& p2,
+	float imgW, float imgH)
+{
+	return calcSpriteUVMatrix(p1, p2.x - p1.x, p2.y - p1.y, imgW, imgH);
 }

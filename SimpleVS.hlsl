@@ -3,6 +3,7 @@
 cbuffer cbuff : register(b0)
 {
     matrix mat;
+    matrix uvMat;
 }
 
 VS_Output SimpleVS( float4 pos : POSITION, float2 uv : TEXCOORD ) 
@@ -12,7 +13,7 @@ VS_Output SimpleVS( float4 pos : POSITION, float2 uv : TEXCOORD )
     VS_Output output;
     
     output.spos = mul(mat, pos);
-    output.uv = uv;
+    output.uv = mul(uvMat, float4(uv, 0.0f, 1.0f)).xy;
     
     return output;
 }

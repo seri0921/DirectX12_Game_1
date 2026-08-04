@@ -90,6 +90,8 @@ void Game::input()
 }
 
 void Game::update(float deltaTime){
+	m_renderer->update(deltaTime);
+
 	m_scene->update(deltaTime);
 }
 	
@@ -97,7 +99,6 @@ void Game::draw()
 {
 	m_renderer->begin();
 
-	m_renderer->draw();
 	m_scene->draw();
 
 	m_renderer->end();
