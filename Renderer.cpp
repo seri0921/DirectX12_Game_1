@@ -1,8 +1,6 @@
 #include "Renderer.h"
 #include "Game.h"
 
-#include <d3dcompiler.h>
-#pragma comment(lib, "d3dcompiler.lib")
 
 Renderer::Renderer(Game* game, XMFLOAT3 backColor)
 	: m_game(game)
@@ -22,6 +20,7 @@ Renderer::Renderer(Game* game, XMFLOAT3 backColor)
 	, m_textureNum(0)
 	, m_spriteDrawList(MaxObjectNum)
 	, m_spriteNum(0)
+	, m_shaderIndex(ShaderNone)
 {
 	
 }
@@ -57,10 +56,23 @@ bool Renderer::initialize()
 	inputLayouts[1] = { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0,
 		D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 };
 
-	if (!createRootSignature(m_simpleRootSig.GetAddressOf())) return false;
-	if (!createGPipelineState(m_simplePSO.GetAddressOf(), m_simpleRootSig.Get(),
-		m_renderTargetFormat, L"shader\\simpleVS.cso", L"shader\\simplePS.cso",
-		inputLayouts, 2)) return false;
+	m_shaders[Shader2DLoopLinear] = std::make_unique<Shader>(
+		m_device.Get(), L"shader\\simpleVS.cso", L"shader\\simplePS.cso",
+		inputLayouts, 2, m_renderTargetFormat,
+		true, true, Shader::BlendConfig::None);
+	m_shaders[Shader2DAlphaLoopPoint] = std::make_unique<Shader>(
+		m_device.Get(), L"shader\\simpleVS.cso", L"shader\\simplePS.cso",
+		inputLayouts, 2, m_renderTargetFormat,
+		true, false, Shader::BlendConfig::Alpha);
+
+	m_shaders[Shader2DAddLoopPoint] = std::make_unique<Shader>(
+		m_device.Get(), L"shader\\simpleVS.cso", L"shader\\simplePS.cso",
+		inputLayouts, 2, m_renderTargetFormat,
+		true, false, Shader::BlendConfig::Add);
+	for (int i = 0; i < SystemShaderNum; ++i)
+	{
+		if (!m_shaders[i]->isEnabled()) return false;
+	}
 
 	// スプライト用頂点バッファの生成
 	{
@@ -78,7 +90,7 @@ bool Renderer::initialize()
 	}
 
 	// シェーダーリソース、定数バッファ用ディスクリプタヒープの生成
-	if (!createDescHeap(m_scDescHeap.GetAddressOf(), SCVViewNum)) return false;
+	if (!createDescHeap(m_scDescHeap.GetAddressOf(), SCViewNum)) return false;
 
 	// カメラ行列を計算
 	m_cameraMatrix = m_camera.calcViewProjMatrix(
@@ -134,6 +146,7 @@ void Renderer::end()
 	//　GetCurrentBackBufferIndexメソッドで次の描画対象のバッファのインデックスを取得
 
 	m_cmdList->SetDescriptorHeaps(1, m_scDescHeap.GetAddressOf());
+	m_shaderIndex = ShaderNone;
 
 	// スプライト描画
 	drawBatchSprite();
@@ -517,160 +530,6 @@ void Renderer::setVertexBufferView(D3D12_VERTEX_BUFFER_VIEW& vertexBufferView,
 	vertexBufferView.StrideInBytes = stride;
 }
 
-bool Renderer::readShaderObject(const wchar_t* shaderPath, ID3DBlob** shaderObj)
-{
-	//シェーダオブジェクトをデータの塊としてID3DBlobに読込む
-	HRESULT hr = D3DReadFileToBlob(shaderPath, shaderObj);
-
-	return SUCCEEDED(hr);
-}
-
-bool Renderer::createRootSignature(ID3D12RootSignature** rootSig)
-{
-	// D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBER_INPUT_LAYOUTをを設定し、入力レイアウトを有効
-	// blob： ルートシグネチャの設定をデータ化したデータの塊
-	// D3D12SerializeRootSignature関数で設定をシリアライズ化（データの塊を生成）
-	// CreateRootSignatureメソッドでシリアライズ化したデータでルートシグネチャを生成
-	D3D12_ROOT_SIGNATURE_DESC desc = {};
-	desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-	D3D12_DESCRIPTOR_RANGE range[2] = {};
-	range[0].NumDescriptors = 1;
-	range[0].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	range[0].BaseShaderRegister = 0;
-	range[0].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	range[1].NumDescriptors = 1;
-	range[1].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-	range[1].BaseShaderRegister = 0;
-	range[1].OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-	D3D12_ROOT_PARAMETER param[2] = {};
-	param[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	param[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	param[0].DescriptorTable.pDescriptorRanges = &range[0];
-	param[0].DescriptorTable.NumDescriptorRanges = 1;
-
-	param[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	param[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-	param[1].DescriptorTable.pDescriptorRanges = &range[1];
-	param[1].DescriptorTable.NumDescriptorRanges = 1;
-	
-	desc.pParameters = param;
-	desc.NumParameters = 2;
-
-	D3D12_STATIC_SAMPLER_DESC sampler = {};
-	sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	sampler.BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
-	sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
-	sampler.MinLOD = 0.0f;
-	sampler.MaxLOD = D3D12_FLOAT32_MAX;
-	sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-	sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
-
-	desc.pStaticSamplers = &sampler;
-	desc.NumStaticSamplers = 1;
-
-	ComPtr<ID3DBlob> blob;
-	HRESULT hr = D3D12SerializeRootSignature(
-		&desc, D3D_ROOT_SIGNATURE_VERSION_1_0,
-		blob.GetAddressOf(), nullptr);
-	if (FAILED(hr)) return false;
-
-	hr = m_device->CreateRootSignature(
-		0, blob->GetBufferPointer(), blob->GetBufferSize(),
-		IID_PPV_ARGS(rootSig));
-
-	return SUCCEEDED(hr);
-}
-
-bool Renderer::createGPipelineState(ID3D12PipelineState** pso,
-	ID3D12RootSignature* rootSig, DXGI_FORMAT renderTargetFormat,
-	const wchar_t* vertexShaderPath, const wchar_t* pixelShaderPath,
-	D3D12_INPUT_ELEMENT_DESC* inputLayouts, UINT layoutNum)
-{
-	// D3D12_GRAPHICS_PIPELINE_STATE_DESC： PSOの設定構造体
-	// vsBlob： 頂点シェーダのオブジェクト、psBlob： ピクセルシェーダのオブジェクト
-	// pDesc.VS： 頂点シェーダのオブジェクトのポインタとサイズを設定
-	// pDesc.PS： ピクセルシェーダのオブジェクトのポインタとサイズを設定
-
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC pDesc = {};
-
-	ComPtr<ID3DBlob> vsBlob;
-	ComPtr<ID3DBlob> psBlob;
-	if (!readShaderObject(vertexShaderPath, vsBlob.GetAddressOf())) return false;
-	if (!readShaderObject(pixelShaderPath, psBlob.GetAddressOf())) return false;
-	
-	pDesc.VS.pShaderBytecode = vsBlob->GetBufferPointer();
-	pDesc.VS.BytecodeLength = vsBlob->GetBufferSize();
-	pDesc.PS.pShaderBytecode = psBlob->GetBufferPointer();
-	pDesc.PS.BytecodeLength = psBlob->GetBufferSize();
-
-	// D3D12_RENDER_TARGET_BLEND_DESC： ブレンディング処理などの設定構造体
-	// pDesc.BlendState： ブレンディング関連の設定
-
-	pDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-
-	D3D12_RENDER_TARGET_BLEND_DESC rtDesc = {};
-	rtDesc.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-	rtDesc.LogicOpEnable = FALSE;
-	rtDesc.BlendEnable = FALSE;
-
-	pDesc.BlendState.AlphaToCoverageEnable = FALSE;
-	pDesc.BlendState.IndependentBlendEnable = FALSE;
-	pDesc.BlendState.RenderTarget[0] = rtDesc;
-
-
-	// ラスタライザの設定
-
-	pDesc.RasterizerState.MultisampleEnable = FALSE;
-	pDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
-	pDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-	pDesc.RasterizerState.DepthClipEnable = TRUE;
-	pDesc.RasterizerState.FrontCounterClockwise = FALSE;
-	pDesc.RasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-	pDesc.RasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-	pDesc.RasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-	pDesc.RasterizerState.AntialiasedLineEnable = FALSE;
-	pDesc.RasterizerState.ForcedSampleCount = 0;
-	pDesc.RasterizerState.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-
-	// pDesc.DepthStencilState： 深度バッファ関連の設定
-	// pDesc.InputLayout： 入力レイアウトの配列と要素数を設定
-	// pDesc.IBStripCutValue： インデックスバッファに関する設定
-	// pDesc.PrimitiveTopologyType： トポロジー設定（三角形ポリゴンを指定）
-
-	pDesc.DepthStencilState.DepthEnable = FALSE;
-	pDesc.DepthStencilState.StencilEnable = FALSE;
-
-	pDesc.InputLayout.pInputElementDescs = inputLayouts;
-	pDesc.InputLayout.NumElements = layoutNum;
-
-	pDesc.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
-	pDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
-	// pDesc.NumRenderTargets： レンダーターゲットの個数
-	// pDesc.RTVFormats： レンダーターゲットのフォーマット
-	// pDesc.SampleDesc： サンプリングの設定
-	// pDesc.pRootSignature： 使用するルートシグネチャのポインタ
-	// CreateGraphicsPipelineStateメソッド： PSOを生成
-
-	pDesc.NumRenderTargets = 1;
-	pDesc.RTVFormats[0] = renderTargetFormat;
-
-	pDesc.SampleDesc.Count = 1;
-	pDesc.SampleDesc.Quality = 0;
-
-	pDesc.pRootSignature = rootSig;
-	
-	HRESULT hr = m_device->CreateGraphicsPipelineState(&pDesc,
-		IID_PPV_ARGS(pso));
-
-	return SUCCEEDED(hr);
-}
-
 void Renderer::setViewport(D3D12_VIEWPORT& viewport)
 {
 	// MinDepthメンバ、MaxDepthメンバで奥行き方向の範囲を0.0f～1.0fに設定
@@ -1018,7 +877,7 @@ void Renderer::setMaterialSlot(int index, int slotNum, const ImageData& imgData)
 		imgData.format, m_scDescHeap.Get(), index * ViewNum + ConstViewNum + slotNum);
 }
 
-bool Renderer::drawSprite(int modelIndex, ImageData imgData,
+bool Renderer::drawSprite(int modelIndex, int shaderIndex, ImageData imgData,
 	XMFLOAT2 pos, float theta, XMFLOAT2* scale, XMFLOAT2 offset,
 	XMFLOAT2 imgPos, XMFLOAT2* imgScale)
 {
@@ -1041,7 +900,7 @@ bool Renderer::drawSprite(int modelIndex, ImageData imgData,
 
 	memcpy(m_constBufferMap[modelIndex], (void*)&mat,
 		sizeof(SpriteTransData));
-	m_spriteDrawList[m_spriteNum] = SpriteDrawInfo(modelIndex);
+	m_spriteDrawList[m_spriteNum] = SpriteDrawInfo(modelIndex, shaderIndex);
 
 	m_spriteNum += 1;
 	return true;
@@ -1076,16 +935,25 @@ void Renderer::drawBatchSprite()
 	// ルートシグネチャ、PSO、スプライト用の頂点バッファビューを設定
 	// m_spriteDrawListに登録された定数バッファの管理インデックスからビューをバインドし、順番に
 	// スプライト（矩形ポリゴン）を描画
-	m_cmdList->SetPipelineState(m_simplePSO.Get());
-	m_cmdList->SetGraphicsRootSignature(m_simpleRootSig.Get());
+	
 	m_cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	m_cmdList->IASetVertexBuffers(0, 1, &m_spriteVertexBufferView);
 
 	for (size_t i = 0; i < m_spriteNum; ++i)
 	{
+		setShader(m_spriteDrawList[i].shaderIndex);
 		setCommandCSBufferView(m_spriteDrawList[i].modelIndex);
 		m_cmdList->DrawInstanced(4, 1, 0, 0);
 	}
 
 	m_spriteNum = 0;
+}
+
+void Renderer::setShader(int shaderIndex)
+{
+	if (m_shaderIndex == shaderIndex) return;
+	if (shaderIndex < 0 || shaderIndex >= ShaderNum) return;
+
+	m_shaders[shaderIndex]->setShader(m_cmdList.Get());
+	m_shaderIndex = shaderIndex;
 }

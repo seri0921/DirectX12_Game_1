@@ -5,6 +5,7 @@
 #include <Windows.h>
 #include <vector>
 #include <memory>
+#include "Renderer.h"
 
 class Actor
 {
@@ -21,6 +22,8 @@ public:
 
 	void setMaxSpeed(float speed) { m_maxSpeed = speed; }
 	float getMaxSpeed() const { return m_maxSpeed; }
+	void setLifeTime(float life) { m_lifeTime = life; }
+	float getLifeTime() const { return m_lifeTime; }
 
 protected:
 	class Scene* m_scene;
@@ -28,6 +31,7 @@ protected:
 	bool m_visible;
 
 	float m_maxSpeed;
+	float m_lifeTime;
 
 };
 
@@ -35,4 +39,5 @@ void updateActors(std::vector<Actor*>& actors, float deltaTime);
 void drawActors(std::vector<Actor*>& actors);
 void releaseActors(std::vector<Actor*>& actors);
 void removeActors(std::vector<Actor*>& actors);
+void moveIntoActors(std::vector<Actor*>& temp, std::vector<Actor*>& actors);
 

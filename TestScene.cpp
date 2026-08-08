@@ -5,27 +5,33 @@
 TestScene::TestScene(Game* game)
 	: Scene(game)
 {
-	XMFLOAT2 s = 200.0f * Ones2d;
-	m_sprites[0] = std::make_unique<SpriteActor>(this, L"src\\oreka.png",
-		ZeroVec2d, ZeroVec2d, &s);
-	if (!m_sprites[0]->isEnebled()) throw std::exception();
+	XMFLOAT2 spriteSize =
+		XMFLOAT2((float)m_game->getWidth(), (float)m_game->getHeight());
+	XMFLOAT2 uvSize = XMFLOAT2(320.0f, 240.0f);
 
-	m_sprites[1] = std::make_unique<SpriteActor>(this, L"src\\oreka2.png",
-		50.0f * Ones2d, ZeroVec2d, &s);
-	if (!m_sprites[1]->isEnebled()) throw std::exception();
+	m_back = std::make_unique<SpriteActor>(this, L"src\\back-s03b.png",
+		Renderer::Shader2DLoopLinear,
+		ZeroVec2d, ZeroVec2d, &spriteSize, &uvSize, Ones2d,
+		0.0f, 0.0f, ZeroVec2d, XMFLOAT2(30.0f, 0.0f));
+	if (!m_back->isEnabled()) throw std::exception();
 
-	m_sprites[2] = std::make_unique<SpriteActor>(this, L"src\\oreka3.png",
-		100.0f * Ones2d, ZeroVec2d, &s);
-	if (!m_sprites[2]->isEnebled()) throw std::exception();
+	std::vector<UINT> indicesDown{ 1, 0, 1, 2 };
+	std::vector<UINT> indicesLeft{ 4, 3, 4, 5 };
+	std::vector<UINT> indicesRight{ 7, 6, 7, 8 };
+	std::vector<UINT> indicesUp{ 10, 9, 10, 11 };
+	std::vector<std::vector<UINT>> anims{ indicesDown, indicesLeft, indicesRight, indicesUp };
+	m_ship = std::make_unique<BlockAnimActor>(this, L"src\\pipo-airship01.png",
+		anims, 0, 0.2f, 3, 4, Renderer::Shader2DAlphaLoopPoint,
+		XMFLOAT2(320.0f, 240.0f), ZeroVec2d, nullptr, Ones2d, 0.0f, 0.0f, true);
+	if (!m_ship->isEnabled()) throw std::exception();
 
-	m_sprites[3] = std::make_unique<SpriteActor>(this, L"src\\oreka4.png",
-		150.0f * Ones2d, ZeroVec2d, &s);
-	if (!m_sprites[3]->isEnebled()) throw std::exception();
-
-	m_sprites[4] = std::make_unique<SpriteActor>(this, L"src\\oreka5.png",
-		200.0f * Ones2d, ZeroVec2d, &s);
-	if (!m_sprites[4]->isEnebled()) throw std::exception();
-
+	for (int i = 0; i < 20; ++i)
+	{
+		m_lightShip[i] = std::make_unique<BlockSpriteActor>(this, L"src\\pipo-airship01.png",
+			3, 4, 6, Renderer::Shader2DAddLoopPoint,
+			XMFLOAT2(320.0f, 200.0f) + (10.0f * i) * UnitVecX2d, ZeroVec2d,
+			nullptr, Ones2d, 0.0f, 0.0f, true);
+	}
 
 	m_isRunning = true;
 }
@@ -36,12 +42,24 @@ TestScene::~TestScene()
 
 void TestScene::update(float deltaTime)
 {
+	const Keyboard& keyboard = m_game->getKeyboard();
+	
+	if (keyboard.isPressed(VK_DOWN)) m_ship->changeLane(0);
+	if (keyboard.isPressed(VK_LEFT)) m_ship->changeLane(1);
+	if (keyboard.isPressed(VK_RIGHT)) m_ship->changeLane(2);
+	if (keyboard.isPressed(VK_UP)) m_ship->changeLane(3);
+
+	m_back->update(deltaTime);
+	m_ship->update(deltaTime);
 }
 
 void TestScene::draw()
 {
-	for (int i = 0; i < 5; ++i)
+	m_back->draw();
+	m_ship->draw();
+
+	for (int i = 0; i < 20; ++i)
 	{
-		m_sprites[i]->draw();
+		m_lightShip[i]->draw();
 	}
 }

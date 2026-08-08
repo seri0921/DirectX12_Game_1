@@ -1,6 +1,7 @@
 #include "Game.h"
 #include <exception>
 #include "TestScene.h"
+#include "ShootingScene.h"
 
 const float Game::FrameRate = 60.0f;
 const float Game::MaxDeltaTime = 0.05f;
@@ -62,7 +63,7 @@ void Game::initialize(HWND hwnd, int width, int height)
 	m_keyboard.initialize();
 
 	// シーンの初期化
-	m_scene = std::make_unique<TestScene>(this);
+	m_scene = std::make_unique<ShootingScene>(this);
 
 }
 

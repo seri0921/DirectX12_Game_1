@@ -10,6 +10,8 @@
 #include "GMath.h"
 #include "GameUtil.h"
 #include "Camera.h"
+#include "Shader.h"
+#include <memory>
 
 #include <wrl.h>
 using namespace Microsoft::WRL;
@@ -31,6 +33,11 @@ public:
 	void end();
 	void update(float deltaTime);
 
+	static const int ShaderNone = -1;
+	static const int Shader2DLoopLinear = 0;
+	static const int Shader2DAlphaLoopPoint = 1;
+	static const int Shader2DAddLoopPoint = 2;
+
 	void setBackColor(float r, float g, float b);
 	void setBackColor(XMFLOAT3 backColor) { m_backColor = backColor; }
 	XMFLOAT3 getBackColor() const { return m_backColor; }
@@ -48,7 +55,7 @@ public:
 		bool ddsFlag = false);
 	void setMaterialSlot(int index, int slotNum, const ImageData& imgDate);
 
-	bool drawSprite(int modelIndex, ImageData imgData,
+	bool drawSprite(int modelIndex, int shaderIndex, ImageData imgData,
 		XMFLOAT2 pos, float theta = 0.0f,
 		XMFLOAT2* scale = nullptr, XMFLOAT2 offset = ZeroVec2d,
 		XMFLOAT2 imgPos = ZeroVec2d, XMFLOAT2* imgScale = nullptr);
@@ -69,7 +76,11 @@ private:
 	static const UINT TexViewNum = 1;
 	static const UINT ViewNum = ConstViewNum + TexViewNum;
 	static const UINT MaxObjectNum = 10000;
-	static const UINT SCVViewNum = MaxObjectNum * ViewNum;
+	static const UINT SCViewNum = MaxObjectNum * ViewNum;
+
+	static const UINT SystemShaderNum = 3;
+	static const UINT UserShaderNum = 0;
+	static const UINT ShaderNum = SystemShaderNum + UserShaderNum;
 
 	static const int ReleaseCountStart = 5;
 	std::vector<std::pair<int, int>> m_constBufferReleaseList;
@@ -93,8 +104,6 @@ private:
 	D3D12_VIEWPORT m_viewport;
 	D3D12_RECT m_scissorRect;
 	DXGI_FORMAT m_renderTargetFormat;
-	ComPtr<ID3D12RootSignature> m_simpleRootSig;
-	ComPtr<ID3D12PipelineState> m_simplePSO;
 	ComPtr<ID3D12DescriptorHeap> m_scDescHeap;
 	ComPtr<ID3D12Resource> m_textureBuffer[MaxTextureNum];
 
@@ -111,11 +120,15 @@ private:
 	ComPtr<ID3D12Resource> m_constBuffer[MaxObjectNum];
 	void* m_constBufferMap[MaxObjectNum];
 
+	std::unique_ptr<Shader> m_shaders[ShaderNum];
+	int m_shaderIndex;
+
 	struct SpriteDrawInfo
 	{
 		int modelIndex;
-		SpriteDrawInfo() : modelIndex(0) {}
-		SpriteDrawInfo(int model) : modelIndex(model) {}
+		int shaderIndex;
+		SpriteDrawInfo() : modelIndex(0), shaderIndex(ShaderNone) {}
+		SpriteDrawInfo(int model, int s) : modelIndex(model), shaderIndex(s) {}
 	};
 	std::vector<SpriteDrawInfo> m_spriteDrawList;
 	int m_spriteNum;
@@ -163,15 +176,8 @@ private:
 	void setIndexBufferView(D3D12_INDEX_BUFFER_VIEW& indexBufferView,
 		ID3D12Resource* buffer, UINT bSize);
 
-
-	bool readShaderObject(const wchar_t* shaderPath, ID3DBlob** shaderObj);
-	bool createRootSignature(ID3D12RootSignature** rootSig);
-	bool createGPipelineState(ID3D12PipelineState** pso,
-		ID3D12RootSignature* rootSig, DXGI_FORMAT renderTargetFormat,
-		const wchar_t* vertexShaderPath, const wchar_t* pixelShaderPath,
-		D3D12_INPUT_ELEMENT_DESC* inputLayouts, UINT layoutNum);
-
 	void setCommandCSBufferView(int index);
 	void drawBatchSprite();
+	void setShader(int shaderIndex);
 };
 

@@ -6,6 +6,7 @@ Actor::Actor(Scene* scene)
 	, m_dead(false)
 	, m_visible(true)
 	, m_maxSpeed(0.0f)
+	, m_lifeTime(1.0f)
 {
 }
 
@@ -53,4 +54,13 @@ void removeActors(std::vector<Actor*>& actors)
 			++it;
 		}
 	}
+}
+
+void moveIntoActors(std::vector<Actor*>& temp, std::vector<Actor*>& actors)
+{
+	for (auto it = temp.begin(); it != temp.end(); ++it)
+	{
+		actors.push_back(*it);
+	}
+	temp.clear();
 }

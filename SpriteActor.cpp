@@ -4,17 +4,22 @@
 #include "Renderer.h"
 
 SpriteActor::SpriteActor(Scene* scene, const std::wstring& filePath,
-	const XMFLOAT2& pos, const XMFLOAT2& vel,
+	int shaderIndex, const XMFLOAT2& pos, const XMFLOAT2& vel,
 	XMFLOAT2* spriteSize, XMFLOAT2* uvSize,
+	const XMFLOAT2& scale, float angle, float angleVel,
+	const XMFLOAT2& uvPos, const XMFLOAT2& uvVel,
 	bool centerFlag, bool ddsFlag)
-	: Actor2d(scene, pos, vel)
+	: Actor2d(scene, pos, vel, scale, angle, angleVel)
 	, m_imgPath(filePath)
 	, m_enabled(false)
 	, m_offset(ZeroVec2d)
 	, m_modelIndex(-1)
+	, m_shaderIndex(shaderIndex)
 	, m_spriteSize(Ones2d)
 	, m_uvSize(Ones2d)
 	, m_center(centerFlag)
+	, m_uvPos(uvPos)
+	, m_uvVel(uvVel)
 {
 	Renderer* renderer = m_scene->getGame()->getRenderer();
 	SpriteTransData d;
@@ -24,7 +29,7 @@ SpriteActor::SpriteActor(Scene* scene, const std::wstring& filePath,
 		return;
 	}
 
-	m_imgData = renderer->allocateShaderResource(filePath, false);
+	m_imgData = renderer->allocateShaderResource(filePath, ddsFlag);
 	if (m_imgData.imgIndex == -1)
 	{
 		renderer->releaseConstBuffer(m_modelIndex);
@@ -35,7 +40,7 @@ SpriteActor::SpriteActor(Scene* scene, const std::wstring& filePath,
 	m_spriteSize = (spriteSize != nullptr) ? *spriteSize
 		: XMFLOAT2((float)m_imgData.width, (float)m_imgData.height);
 	m_offset = (m_center) ? ZeroVec2d
-		: -0.5f * XMFLOAT2(m_spriteSize.x, m_spriteSize.y);
+		: -0.5f * XMFLOAT2(m_scale.x * m_spriteSize.x, m_scale.y * m_spriteSize.y);
 	m_uvSize = (uvSize != nullptr) ? *uvSize
 		: XMFLOAT2((float)m_imgData.width, (float)m_imgData.height);
 
@@ -52,7 +57,8 @@ SpriteActor::~SpriteActor()
 
 void SpriteActor::update(float deltaTime)
 {
-	m_pos += m_vel * deltaTime;
+	simulate(deltaTime);
+	m_uvPos += deltaTime * m_uvVel;
 }
 
 void SpriteActor::draw()
@@ -60,8 +66,24 @@ void SpriteActor::draw()
 	if (!m_visible) return;
 	if (!m_enabled) return;
 
-	XMFLOAT2 scale = XMFLOAT2(m_spriteSize.x, m_spriteSize.y);
+	XMFLOAT2 scale = XMFLOAT2(m_scale.x * m_spriteSize.x, m_scale.y * m_spriteSize.y);
 	m_scene->getGame()->getRenderer()->drawSprite(
-		m_modelIndex, m_imgData, m_pos, 0.0f,
-		&scale, m_offset, ZeroVec2d, &m_uvSize);
+		m_modelIndex, m_shaderIndex, m_imgData, m_pos, m_angle,
+		&scale, m_offset, m_uvPos, &m_uvSize);
+}
+
+void SpriteActor::setScale(XMFLOAT2 s)
+{
+	m_scale = s;
+
+	m_offset = (m_center) ? ZeroVec2d
+		: -0.5f * XMFLOAT2(m_scale.x * m_spriteSize.x, m_scale.y * m_spriteSize.y);
+}
+
+int SpriteActor::setShader(int shaderIndex)
+{
+	int s = m_shaderIndex;
+	m_shaderIndex = shaderIndex;
+
+	return s;
 }
