@@ -75,9 +75,14 @@ bool detectPointToCircleCollision(XMFLOAT2& p, Circle& c);
 // 点と矩形の衝突（内外）判定
 bool detectPointToBoxCollision(XMFLOAT2& p, Box& box);
 // 円と円の衝突判定
-bool detectCircleCollision(Circle& c1, Circle& c2);
+bool detectCircleCollision(Circle& c1, Circle& c2,
+	XMFLOAT2* corr = nullptr, float* len = nullptr);
 // 円と線分の衝突判定
 bool detectCircleToSegmentCollision(Circle& c, Segment& seg);
+// 矩形と矩形の衝突判定
+bool detectBoxCollision(Box& b1, Box& b2);
+// 矩形と円の衝突判定
+bool detectBoxToCircleCollision(Box& b, Circle& c);
 
 // 矩形を線分に分割
 void separateBoxToSegments(const Box& rect, Segment& left, Segment& right,
@@ -101,11 +106,14 @@ struct SpriteTransData
 {
 	XMMATRIX posMat;
 	XMMATRIX uvMat;
+	XMFLOAT3 color;
+	float alpha;
 
 	SpriteTransData()
-		: posMat(XMMatrixIdentity()), uvMat(XMMatrixIdentity()) {}
+		: posMat(XMMatrixIdentity()), uvMat(XMMatrixIdentity()),
+		  color(Ones3d), alpha(1.0f) {}
 	SpriteTransData(XMMATRIX pos, XMMATRIX uv)
-		: posMat(pos), uvMat(uv) {}
+		: posMat(pos), uvMat(uv), color(Ones3d), alpha(1.0f) {}
 };
 
 // スプライト座標変換行列

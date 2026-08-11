@@ -41,11 +41,18 @@ bool detectPointToBoxCollision(XMFLOAT2& p, Box& box)
 }
 
 // 円と円の衝突判定
-bool detectCircleCollision(Circle& c1, Circle& c2)
+bool detectCircleCollision(Circle& c1, Circle& c2,
+	XMFLOAT2* corr, float* len)
 {
 	XMFLOAT2 d = c2.pos - c1.pos;
 	float th = c1.radius + c2.radius;
-	if (lengthSq(d) < th * th) return true;
+	if (lengthSq(d) < th * th)
+	{
+		if (corr != nullptr) *corr = normalize(d);
+		if (len != nullptr) *len = th - length(d);
+
+		return true;
+	}
 	return false;
 }
 
@@ -154,4 +161,33 @@ XMMATRIX calcSpriteUVMatrix(const XMFLOAT2& p1, const XMFLOAT2& p2,
 	float imgW, float imgH)
 {
 	return calcSpriteUVMatrix(p1, p2.x - p1.x, p2.y - p1.y, imgW, imgH);
+}
+
+// 矩形と矩形の衝突判定
+bool detectBoxCollision(Box& b1, Box& b2)
+{
+	XMFLOAT2 p1min = b1.pos;
+	XMFLOAT2 p1max = b1.pos + XMFLOAT2(b1.width, b1.height);
+	XMFLOAT2 p2min = b2.pos;
+	XMFLOAT2 p2max = b2.pos + XMFLOAT2(b2.width, b2.height);
+
+	if (p1max.x < p2min.x) return false;
+	if (p2max.x < p1min.x) return false;
+	if (p1max.y < p2min.y) return false;
+	if (p2max.y < p1min.y) return false;
+	return true;
+}
+
+// 矩形と円の衝突判定
+bool detectBoxToCircleCollision(Box& b, Circle& c)
+{
+	XMFLOAT2 bmin = b.pos;
+	XMFLOAT2 bmax = b.pos + XMFLOAT2(b.width, b.height);
+	XMFLOAT2 s;
+	s.x = (c.pos.x > bmax.x) ? bmax.x
+		: (bmin.x > c.pos.x) ? bmin.x : c.pos.x;
+	s.y = (c.pos.y > bmax.y) ? bmax.y
+		: (bmin.y > c.pos.y) ? bmin.y : c.pos.y;
+
+	return lengthSq(s - c.pos) <= (c.radius * c.radius);
 }

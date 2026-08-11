@@ -58,7 +58,20 @@ public:
 	bool drawSprite(int modelIndex, int shaderIndex, ImageData imgData,
 		XMFLOAT2 pos, float theta = 0.0f,
 		XMFLOAT2* scale = nullptr, XMFLOAT2 offset = ZeroVec2d,
-		XMFLOAT2 imgPos = ZeroVec2d, XMFLOAT2* imgScale = nullptr);
+		XMFLOAT2 imgPos = ZeroVec2d, XMFLOAT2* imgScale = nullptr,
+		XMFLOAT3 color = Ones3d, float alpha = 1.0f);
+
+	ImageData createUnicolorTexture(const wchar_t* imageName, ColorRGBA color);
+
+	static const wchar_t* WhiteTexture;
+	static const wchar_t* BlackTexture;
+	static const wchar_t* GrayTexture;
+	static const wchar_t* RedTexture;
+	static const wchar_t* GreenTexture;
+	static const wchar_t* BlueTexture;
+	static const wchar_t* YellowTexture;
+	static const wchar_t* CyanTexture;
+	static const wchar_t* MagentaTexture;
 
 private:
 	class Game* m_game;
@@ -104,7 +117,7 @@ private:
 	D3D12_VIEWPORT m_viewport;
 	D3D12_RECT m_scissorRect;
 	DXGI_FORMAT m_renderTargetFormat;
-	ComPtr<ID3D12DescriptorHeap> m_scDescHeap;
+	ComPtr<ID3D12DescriptorHeap> m_scDescHeap[FrameNum];
 	ComPtr<ID3D12Resource> m_textureBuffer[MaxTextureNum];
 
 	UINT m_textureNum;
@@ -117,8 +130,8 @@ private:
 	ComPtr<ID3D12Resource> m_spriteVertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_spriteVertexBufferView;
 
-	ComPtr<ID3D12Resource> m_constBuffer[MaxObjectNum];
-	void* m_constBufferMap[MaxObjectNum];
+	ComPtr<ID3D12Resource> m_constBuffer[FrameNum][MaxObjectNum];
+	void* m_constBufferMap[FrameNum][MaxObjectNum];
 
 	std::unique_ptr<Shader> m_shaders[ShaderNum];
 	int m_shaderIndex;

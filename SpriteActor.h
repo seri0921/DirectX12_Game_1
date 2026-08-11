@@ -21,6 +21,8 @@ public:
 
 	bool isEnabled() const { return m_enabled; }
 	int setShader(int shaderIndex);
+	void setColorVector(XMFLOAT3 color, float alpha);
+	XMFLOAT4 getColorVector() const;
 
 protected:
 	std::wstring m_imgPath;
@@ -34,6 +36,7 @@ protected:
 	XMFLOAT2 m_uvPos;
 	XMFLOAT2 m_uvVel;
 	bool m_center;
-
+	XMFLOAT3 m_color;
+	float m_alpha;
 };
 

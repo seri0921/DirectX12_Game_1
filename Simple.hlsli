@@ -7,4 +7,5 @@ struct VS_Output
     
     float4 spos : SV_Position;
     float2 uv : TEXCOORD;
+    float4 color : COLOR;
 };

@@ -18,6 +18,8 @@ SpriteActor::SpriteActor(Scene* scene, const std::wstring& filePath,
 	, m_spriteSize(Ones2d)
 	, m_uvSize(Ones2d)
 	, m_center(centerFlag)
+	, m_color(Ones3d)
+	, m_alpha(1.0f)
 	, m_uvPos(uvPos)
 	, m_uvVel(uvVel)
 {
@@ -69,7 +71,7 @@ void SpriteActor::draw()
 	XMFLOAT2 scale = XMFLOAT2(m_scale.x * m_spriteSize.x, m_scale.y * m_spriteSize.y);
 	m_scene->getGame()->getRenderer()->drawSprite(
 		m_modelIndex, m_shaderIndex, m_imgData, m_pos, m_angle,
-		&scale, m_offset, m_uvPos, &m_uvSize);
+		&scale, m_offset, m_uvPos, &m_uvSize, m_color, m_alpha);
 }
 
 void SpriteActor::setScale(XMFLOAT2 s)
@@ -86,4 +88,16 @@ int SpriteActor::setShader(int shaderIndex)
 	m_shaderIndex = shaderIndex;
 
 	return s;
+}
+
+void SpriteActor::setColorVector(XMFLOAT3 color, float alpha)
+{
+	m_color = color;
+	m_alpha = alpha;
+}
+
+XMFLOAT4 SpriteActor::getColorVector() const
+{
+	XMFLOAT4 color = { m_color.x, m_color.y, m_color.z, m_alpha };
+	return color;
 }

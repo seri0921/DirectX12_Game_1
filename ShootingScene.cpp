@@ -2,6 +2,7 @@
 #include "Game.h"
 #include <exception>
 #include "Renderer.h"
+#include "EnemyActor.h"
 
 ShootingScene::ShootingScene(Game* game)
 	: Scene(game)
@@ -35,14 +36,35 @@ ShootingScene::~ShootingScene()
 {
 	releaseActors(m_playerBullets);
 	releaseActors(m_playerBulletsTemp);
+	releaseActors(m_enemyBullets);
+	releaseActors(m_enemyBulletsTemp);
+	releaseActors(m_enemies);
+	releaseActors(m_enemiesTemp);
 }
 
 void ShootingScene::update(float deltaTime)
 {
+	// 敵の生成処理
+	if (m_game->getRand() < 0.05)
+	{
+		float y = 30.0f + 420.0f * (float)m_game->getRand();
+		std::vector<UINT> indices{ 4, 3, 4, 5 };
+		std::vector<std::vector<UINT>> anims{ indices };
+		EnemyActor* enemy = new EnemyActor(this,
+			L"src\\kabocha.png", anims, 16.0f, 0, 0.2f, 3, 4,
+			Renderer::Shader2DAlphaLoopPoint,
+			XMFLOAT2((float)m_game->getWidth() + 16.0f, y), -200.0f * UnitVecX2d);
+		if (!enemy->isEnabled()) throw std::exception();
+		enemy->setLifeTime(2.0f);
+		addEnemy(enemy);
+
+	}
 	// 更新処理
 	m_back->update(deltaTime);
 	m_player->update(deltaTime);
 	updateActors(m_playerBullets, deltaTime);
+	updateActors(m_enemyBullets, deltaTime);
+	updateActors(m_enemies, deltaTime);
 	updateActors(m_actors, deltaTime);
 
 	// 削除処理、追加処理
@@ -50,12 +72,18 @@ void ShootingScene::update(float deltaTime)
 	moveIntoActors(m_actorsTemp, m_actors);
 	removeActors(m_playerBullets);
 	moveIntoActors(m_playerBulletsTemp, m_playerBullets);
+	removeActors(m_enemyBullets);
+	moveIntoActors(m_enemyBulletsTemp, m_enemyBullets);
+	removeActors(m_enemies);
+	moveIntoActors(m_enemiesTemp, m_enemies);
 }
 
 void ShootingScene::draw()
 {
 	m_back->draw();
 	m_player->draw();
+	drawActors(m_enemies);
 	drawActors(m_playerBullets);
+	drawActors(m_enemyBullets);
 	drawActors(m_actors);
 }

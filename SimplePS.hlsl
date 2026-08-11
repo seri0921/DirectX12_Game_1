@@ -5,5 +5,5 @@ SamplerState smp : register(s0);
 
 float4 SimplePS(VS_Output input) : SV_TARGET
 {
-    return tex.Sample(smp, input.uv);
+    return tex.Sample(smp, input.uv) * input.color;
 }

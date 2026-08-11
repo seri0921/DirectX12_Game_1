@@ -167,6 +167,8 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CharaActor.cpp" />
     <ClCompile Include="ColorAnimActor.cpp" />
+    <ClCompile Include="EnemyActor.cpp" />
+    <ClCompile Include="EnemyBulletActor.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GameUtil.cpp" />
     <ClCompile Include="GMath.cpp" />
@@ -190,6 +192,8 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CharaActor.h" />
     <ClInclude Include="ColorAnimActor.h" />
+    <ClInclude Include="EnemyActor.h" />
+    <ClInclude Include="EnemyBulletActor.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameUtil.h" />
     <ClInclude Include="GMath.h" />

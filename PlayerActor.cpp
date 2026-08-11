@@ -67,5 +67,7 @@ void PlayerActor::update(float deltaTime)
 
 void PlayerActor::draw()
 {
+	if (m_dead) return;
+
 	SpriteActor::draw();
 }

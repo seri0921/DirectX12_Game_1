@@ -19,7 +19,7 @@ public:
 private:
 	static const int KeyNum = 256;
 
-	BYTE m_keyStates[KeyNum];
-	BYTE m_keyOldStates[KeyNum];
+	SHORT m_keyStates[KeyNum];
+	SHORT m_keyOldStates[KeyNum];
 };
 

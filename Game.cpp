@@ -63,7 +63,7 @@ void Game::initialize(HWND hwnd, int width, int height)
 	m_keyboard.initialize();
 
 	// シーンの初期化
-	m_scene = std::make_unique<ShootingScene>(this);
+	m_scene = std::make_unique<TestScene>(this);
 
 }
 

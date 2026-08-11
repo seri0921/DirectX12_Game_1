@@ -1,11 +1,11 @@
-#include "PlayerBulletActor.h"
+#include "EnemyBulletActor.h"
 #include "Game.h"
 #include "Scene.h"
 #include "ShootingScene.h"
 #include "EnemyActor.h"
 
 
-PlayerBulletActor::PlayerBulletActor(Scene* scene, const std::wstring& filePath,
+EnemyBulletActor::EnemyBulletActor(Scene* scene, const std::wstring& filePath,
 	const std::vector<std::vector<UINT>>& indices, float radius,
 	UINT lane, float interval, UINT wNum, UINT hNum, int shaderIndex,
 	const XMFLOAT2& pos, const XMFLOAT2& vel, XMFLOAT2* spriteSize,
@@ -15,11 +15,12 @@ PlayerBulletActor::PlayerBulletActor(Scene* scene, const std::wstring& filePath,
 {
 }
 
-PlayerBulletActor::~PlayerBulletActor()
+EnemyBulletActor::~EnemyBulletActor()
 {
+
 }
 
-void PlayerBulletActor::update(float deltaTime)
+void EnemyBulletActor::update(float deltaTime)
 {
 	if (m_dead) return;
 
@@ -36,18 +37,16 @@ void PlayerBulletActor::update(float deltaTime)
 		return;
 	}
 
-	Circle p = getCircle();
 	ShootingScene* scene = (ShootingScene*)m_scene;
-	std::vector<Actor*>& enemies = scene->getEnemies();
-	for (auto it = enemies.begin(); it != enemies.end(); ++it)
+	PlayerActor* player = scene->getPlayer();
+	if (!player->isDead())
 	{
-		if ((*it)->isDead()) continue;
-		EnemyActor* enemy = (EnemyActor*)(*it);
-		Circle e = enemy->getCircle();
+		Circle e = getCircle();
+		Circle p = player->getCircle();
 		if (detectCircleCollision(p, e))
 		{
 			setDead();
-			enemy->setDead();
+			player->setDead();
 		}
 	}
 }

@@ -20,5 +20,6 @@ private:
 	std::unique_ptr<SpriteActor> m_back;
 	std::unique_ptr<BlockAnimActor> m_ship;
 	std::unique_ptr<BlockSpriteActor> m_lightShip[20];
+	std::unique_ptr<SpriteActor> m_unicolor;
 };
 

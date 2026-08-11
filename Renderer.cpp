@@ -1,6 +1,15 @@
 #include "Renderer.h"
 #include "Game.h"
 
+const wchar_t* Renderer::WhiteTexture(L"White");
+const wchar_t* Renderer::BlackTexture(L"Black");
+const wchar_t* Renderer::GrayTexture(L"Gray");
+const wchar_t* Renderer::RedTexture(L"Red");
+const wchar_t* Renderer::GreenTexture(L"Green");
+const wchar_t* Renderer::BlueTexture(L"Blue");
+const wchar_t* Renderer::YellowTexture(L"Yellow");
+const wchar_t* Renderer::CyanTexture(L"Cyan");
+const wchar_t* Renderer::MagentaTexture(L"Magenta");
 
 Renderer::Renderer(Game* game, XMFLOAT3 backColor)
 	: m_game(game)
@@ -90,8 +99,10 @@ bool Renderer::initialize()
 	}
 
 	// シェーダーリソース、定数バッファ用ディスクリプタヒープの生成
-	if (!createDescHeap(m_scDescHeap.GetAddressOf(), SCViewNum)) return false;
-
+	for (int i = 0; i < FrameNum; ++i)
+	{
+		if (!createDescHeap(m_scDescHeap[i].GetAddressOf(), SCViewNum)) return false;
+	}
 	// カメラ行列を計算
 	m_cameraMatrix = m_camera.calcViewProjMatrix(
 		(float)m_game->getWidth(), (float)m_game->getHeight());
@@ -99,6 +110,30 @@ bool Renderer::initialize()
 	// スプライト行列を計算
 	m_spriteMatrix =
 		calcSpriteMatrix((float)m_game->getWidth(), (float)m_game->getHeight());
+
+	// 単色テクスチャの生成
+	{
+		ImageData imgData;
+		imgData = createUnicolorTexture(WhiteTexture, ColorRGBA(255, 255, 255, 255));
+		if (imgData.imgIndex == -1) return false;
+		imgData = createUnicolorTexture(BlackTexture, ColorRGBA(0, 0, 0, 255));
+		if (imgData.imgIndex == -1) return false;
+		imgData = createUnicolorTexture(GrayTexture, ColorRGBA(127, 127, 127, 255));
+		if (imgData.imgIndex == -1) return false;
+		imgData = createUnicolorTexture(RedTexture, ColorRGBA(255, 0, 0, 255));
+		if (imgData.imgIndex == -1) return false;
+		imgData = createUnicolorTexture(GreenTexture, ColorRGBA(0, 255, 0, 255));
+		if (imgData.imgIndex == -1) return false;
+		imgData = createUnicolorTexture(BlueTexture, ColorRGBA(0, 0, 0, 255));
+		if (imgData.imgIndex == -1) return false;
+		imgData = createUnicolorTexture(YellowTexture, ColorRGBA(255, 255, 0, 255));
+		if (imgData.imgIndex == -1) return false;
+		imgData = createUnicolorTexture(CyanTexture, ColorRGBA(0, 255, 255, 255));
+		if (imgData.imgIndex == -1) return false;
+		imgData = createUnicolorTexture(MagentaTexture, ColorRGBA(255, 0, 255, 255));
+		if (imgData.imgIndex == -1) return false;
+
+	}
 
 	return true;
 }
@@ -145,7 +180,7 @@ void Renderer::end()
 	//　スワップチェインのPresentメソッドでフリップ処理が行われ、描画対象のバッファが切り替わる
 	//　GetCurrentBackBufferIndexメソッドで次の描画対象のバッファのインデックスを取得
 
-	m_cmdList->SetDescriptorHeaps(1, m_scDescHeap.GetAddressOf());
+	m_cmdList->SetDescriptorHeaps(1, m_scDescHeap[m_bufferIndex].GetAddressOf());
 	m_shaderIndex = ShaderNone;
 
 	// スプライト描画
@@ -767,22 +802,33 @@ int Renderer::allocateConstBuffer(const void* pData, size_t dsize)
 	int index = 0;
 	for (; index < MaxObjectNum; ++index)
 	{
-		if (m_constBuffer[index].Get() == nullptr) break;
+		if (m_constBuffer[0][index].Get() == nullptr) break;
 	}
 	if (index >= MaxObjectNum) return -1;
 
-	if (!createConstBuffer(m_constBuffer[index].GetAddressOf(),
-		pData, dsize, &m_constBufferMap[index])) 
+	for (int i = 0; i < FrameNum; ++i)
 	{
-		return -1;
-	}
+		if (!createConstBuffer(m_constBuffer[i][index].GetAddressOf(),
+			pData, dsize, &m_constBufferMap[i][index]))
+		{
+			if (i > 0)
+			{
+				for (int j = i - 1; j >= 0; --j)
+				{
+					m_constBuffer[j][index].Reset();
+				}
+			}
+			return -1;
+		}
 
-	setConstBufferView(m_constBuffer[index].Get(), m_scDescHeap.Get(),
-		index * ViewNum);
-	for (int k = 0; k < TexViewNum; ++k)
-	{
-		setShaderResourceView(nullptr, DXGI_FORMAT_R8G8B8A8_UNORM,
-			m_scDescHeap.Get(), index * ViewNum + ConstViewNum + k);
+		setConstBufferView(m_constBuffer[i][index].Get(), m_scDescHeap[i].Get(),
+			index * ViewNum);
+
+		for (int k = 0; k < TexViewNum; ++k)
+		{
+			setShaderResourceView(nullptr, DXGI_FORMAT_R8G8B8A8_UNORM,
+				m_scDescHeap[i].Get(), index * ViewNum + ConstViewNum + k);
+		}
 	}
 
 	return index;
@@ -794,7 +840,7 @@ void Renderer::uploadConstBuffer(int index, const void* pData, size_t dsize)
 
 	if (index < 0 || index >= MaxObjectNum) return;
 
-	memcpy(m_constBufferMap[index], pData, dsize);
+	memcpy(m_constBufferMap[m_bufferIndex][index], pData, dsize);
 }
 
 void Renderer::releaseConstBuffer(int index)
@@ -803,7 +849,7 @@ void Renderer::releaseConstBuffer(int index)
 	// 削除予定のリストm_constBufferReleaseListに記録するだけで即時解放はしない
 	// （注意）定数バッファをGPU側が描画処理に使用している可能性があるため
 	if (index < 0 || index >= MaxObjectNum) return;
-	if (m_constBuffer[index].Get() == nullptr) return;
+	if (m_constBuffer[0][index].Get() == nullptr) return;
 
 	m_constBufferReleaseList.push_back(std::make_pair(index, ReleaseCountStart));
 }
@@ -819,8 +865,11 @@ void Renderer::update(float deltaTime)
 			if ((*it).second <= 0)
 			{
 				int index = (*it).first;
-				m_constBuffer[index]->Unmap(0, nullptr);
-				m_constBuffer[index].Reset();
+				for (UINT i = 0; i < FrameNum; ++i)
+				{
+					m_constBuffer[i][index]->Unmap(0, nullptr);
+					m_constBuffer[i][index].Reset();
+				}
 				it = m_constBufferReleaseList.erase(it);
 			}
 			else
@@ -873,13 +922,16 @@ void Renderer::setMaterialSlot(int index, int slotNum, const ImageData& imgData)
 	if (index < 0 || index >= MaxObjectNum) return;
 	if (slotNum < 0 || slotNum >= TexViewNum) return;
 
-	setShaderResourceView(m_textureBuffer[imgData.imgIndex].Get(),
-		imgData.format, m_scDescHeap.Get(), index * ViewNum + ConstViewNum + slotNum);
+	for (int i = 0; i < FrameNum; i++)
+	{
+		setShaderResourceView(m_textureBuffer[imgData.imgIndex].Get(),
+			imgData.format, m_scDescHeap[i].Get(), index * ViewNum + ConstViewNum + slotNum);
+	}
 }
 
 bool Renderer::drawSprite(int modelIndex, int shaderIndex, ImageData imgData,
 	XMFLOAT2 pos, float theta, XMFLOAT2* scale, XMFLOAT2 offset,
-	XMFLOAT2 imgPos, XMFLOAT2* imgScale)
+	XMFLOAT2 imgPos, XMFLOAT2* imgScale, XMFLOAT3 color, float alpha)
 {
 	// スプライト描画の最大数を超えた場合は処理しない
 	// scale、imgScaleがnullptrならテクスチャの実サイズ（画像サイズ）を使用
@@ -897,8 +949,10 @@ bool Renderer::drawSprite(int modelIndex, int shaderIndex, ImageData imgData,
 		calcSpriteModelMatrix(texSize, pos, offset, theta) * m_spriteMatrix;
 	mat.uvMat = calcSpriteUVMatrix(imgPos, uvSize.x, uvSize.y,
 		(float)imgData.width, (float)imgData.height);
+	mat.color = color;
+	mat.alpha = alpha;
 
-	memcpy(m_constBufferMap[modelIndex], (void*)&mat,
+	memcpy(m_constBufferMap[m_bufferIndex][modelIndex], (void*)&mat,
 		sizeof(SpriteTransData));
 	m_spriteDrawList[m_spriteNum] = SpriteDrawInfo(modelIndex, shaderIndex);
 
@@ -917,13 +971,13 @@ void Renderer::setCommandCSBufferView(int index)
 	int idx = ViewNum * index;
 	{
 		// 定数バッファビュー
-		auto handle = m_scDescHeap->GetGPUDescriptorHandleForHeapStart();
+		auto handle = m_scDescHeap[m_bufferIndex]->GetGPUDescriptorHandleForHeapStart();
 		handle.ptr += idx * m_csuIncSize;
 		m_cmdList->SetGraphicsRootDescriptorTable(1, handle);
 	}
 	{
 		// シェーダーリソースビュー
-		auto handle = m_scDescHeap->GetGPUDescriptorHandleForHeapStart();
+		auto handle = m_scDescHeap[m_bufferIndex]->GetGPUDescriptorHandleForHeapStart();
 		handle.ptr += (idx + ConstViewNum) * m_csuIncSize;
 		m_cmdList->SetGraphicsRootDescriptorTable(0, handle);
 	}
@@ -956,4 +1010,39 @@ void Renderer::setShader(int shaderIndex)
 
 	m_shaders[shaderIndex]->setShader(m_cmdList.Get());
 	m_shaderIndex = shaderIndex;
+}
+
+ImageData Renderer::createUnicolorTexture(const wchar_t* imageName, ColorRGBA color)
+{
+	ImageData imgData;
+	if (m_textureNum >= MaxTextureNum) return imgData;
+	auto it = m_textures.find(imageName);
+	if (it != m_textures.end()) return imgData;
+
+	int index = 0;
+	while (index < MaxTextureNum)
+	{
+		if (m_textureBuffer[index].Get() == nullptr) break;
+		++index;
+	}
+	if (index >= MaxTextureNum) return imgData;
+
+	std::vector<ColorRGBA> colors(4 * 4);
+	for (ColorRGBA& c : colors)
+	{
+		c = color;
+	}
+
+	if (!createShaderResource(m_textureBuffer[index].GetAddressOf(),
+		4, 4, m_renderTargetFormat)) return imgData;
+	if (!uploadShaderResource(m_textureBuffer[index].Get(), colors.data(),
+		(UINT)(sizeof(ColorRGBA) * 4), (UINT)(sizeof(ColorRGBA) * 16))) return imgData;
+
+	imgData.imgIndex = index;
+	imgData.width = 4;
+	imgData.height = 4;
+	imgData.filePath = imageName;
+	m_textures[imageName] = imgData;
+
+	return imgData;
 }

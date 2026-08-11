@@ -33,6 +33,15 @@ TestScene::TestScene(Game* game)
 			nullptr, Ones2d, 0.0f, 0.0f, true);
 	}
 
+	{
+		XMFLOAT2 s = XMFLOAT2(100.0f, 100.0f);
+		m_unicolor = std::make_unique<SpriteActor>(this,
+			L"src\\oreka.png", Renderer::Shader2DAlphaLoopPoint,
+			XMFLOAT2(100.0f, 100.0f), ZeroVec2d, &s);
+		if (!m_unicolor->isEnabled()) throw std::exception();
+		m_unicolor->setColorVector(Ones3d, 0.0f);
+	}
+
 	m_isRunning = true;
 }
 
@@ -51,6 +60,11 @@ void TestScene::update(float deltaTime)
 
 	m_back->update(deltaTime);
 	m_ship->update(deltaTime);
+
+	static float alpha = 0.0f;
+	alpha += 0.001;
+	alpha = (alpha > 1.0f) ? 1.0f : alpha;
+	m_unicolor->setColorVector(Ones3d, alpha);
 }
 
 void TestScene::draw()
@@ -61,5 +75,6 @@ void TestScene::draw()
 	for (int i = 0; i < 20; ++i)
 	{
 		m_lightShip[i]->draw();
+		m_unicolor->draw();
 	}
 }
