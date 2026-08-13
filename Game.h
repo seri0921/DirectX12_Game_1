@@ -3,6 +3,7 @@
 #include <Windows.h>
 #include "GameUtil.h"
 #include "Keyboard.h"
+#include "Mouse.h"
 
 #include <memory>
 #include "Scene.h"
@@ -23,6 +24,7 @@ public:
 	int getHeight() const { return m_height; }
 
 	const Keyboard& getKeyboard() const { return m_keyboard; }
+	const Mouse& getMouse() const { return m_mouse; }
 	Renderer* getRenderer() { return m_renderer.get(); }
 
 	double getRand();
@@ -44,6 +46,7 @@ private:
 	LARGE_INTEGER m_freqTime;
 
 	Keyboard m_keyboard;
+	Mouse m_mouse;
 
 	std::unique_ptr<Scene> m_scene;
 	std::unique_ptr<Renderer> m_renderer;

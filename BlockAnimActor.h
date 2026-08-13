@@ -18,12 +18,26 @@ public:
 	virtual void update(float deltaTime) override;
 	void changeLane(UINT lane);
 
+	enum class AnimState
+	{
+		Play, Pause, Stop
+	};
+	static const int Loopinfinity = -1;
+
+	AnimState getAnimState() const { return m_animState; }
+	void setAnimState(int loopNum, bool startFlag);
+	void start();
+	void pause();
+	void stop();
+
 protected:
 	std::vector<std::vector<UINT>> m_animalIndices;
 	UINT m_laneIndex;
 	UINT m_animID;
 	float m_time;
 	float m_interval;
+	int m_loopNum;
+	AnimState m_animState;
 
 	void updateAnim(float deltaTime);
 };

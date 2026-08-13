@@ -31,7 +31,7 @@ Renderer::Renderer(Game* game, XMFLOAT3 backColor)
 	, m_spriteNum(0)
 	, m_shaderIndex(ShaderNone)
 {
-	
+	memset((void*)m_textureReferenceCount, 0, MaxTextureNum * sizeof(int));
 }
 
 Renderer::~Renderer()
@@ -878,6 +878,25 @@ void Renderer::update(float deltaTime)
 			}
 		}
 	}
+
+	{
+		// シェーダーリソース（テクスチャ）の解放
+		auto it = m_texBufferReleaseList.begin();
+		while (it != m_texBufferReleaseList.end())
+		{
+			(*it).second -= 1;
+			if ((*it).second <= 0)
+			{
+				int index = (*it).first;
+				m_textureBuffer[index].Reset();
+				it = m_texBufferReleaseList.erase(it);
+			}
+			else
+			{
+				++it;
+			}
+		}
+	}
 }
 
 ImageData Renderer::allocateShaderResource(const std::wstring& filePath,
@@ -887,8 +906,12 @@ ImageData Renderer::allocateShaderResource(const std::wstring& filePath,
 	// 存在しない場合は未使用のシェーダリソースの管理インデックスを探索し、シェーダリソースを生成
 
 	auto it = m_textures.find(filePath);
-	if (it != m_textures.end()) return (*it).second;
-
+	if (it != m_textures.end())
+	{
+		ImageData id = (*it).second;
+		m_textureReferenceCount[id.imgIndex] += 1;
+		return id;
+	}
 	ImageData imgData;
 	if (m_textureNum >= MaxTextureNum) return imgData;
 
@@ -910,6 +933,7 @@ ImageData Renderer::allocateShaderResource(const std::wstring& filePath,
 	imgData.filePath = filePath;
 	imgData.format = metadata.format;
 	m_textures[filePath] = imgData;
+	m_textureReferenceCount[index] += 1;
 
 	return imgData;
 }
@@ -1017,7 +1041,12 @@ ImageData Renderer::createUnicolorTexture(const wchar_t* imageName, ColorRGBA co
 	ImageData imgData;
 	if (m_textureNum >= MaxTextureNum) return imgData;
 	auto it = m_textures.find(imageName);
-	if (it != m_textures.end()) return imgData;
+	if (it != m_textures.end())
+	{
+		ImageData id = (*it).second;
+		m_textureReferenceCount[id.imgIndex] += 1;
+		return id;
+	}
 
 	int index = 0;
 	while (index < MaxTextureNum)
@@ -1043,6 +1072,25 @@ ImageData Renderer::createUnicolorTexture(const wchar_t* imageName, ColorRGBA co
 	imgData.height = 4;
 	imgData.filePath = imageName;
 	m_textures[imageName] = imgData;
+	m_textureReferenceCount[index] += 1;
 
 	return imgData;
+}
+
+void Renderer::releaseShaderResource(const ImageData& imgData)
+{
+	int index = imgData.imgIndex;
+	if (index < 0 || index >= MaxTextureNum) return;
+	if (m_textureReferenceCount[index] <= 0) return;
+	if (m_textureBuffer[index].Get() == nullptr) return;
+
+	m_textureReferenceCount[index] -= 1;
+	if (m_textureReferenceCount[index] == 0)
+	{
+		auto it = m_textures.find(imgData.filePath);
+		if (it == m_textures.end()) return;
+
+		m_texBufferReleaseList.push_back(std::make_pair(index, ReleaseCountStart));
+		m_textures.erase(it);
+	}
 }

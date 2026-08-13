@@ -8,6 +8,41 @@ ShootingScene::ShootingScene(Game* game)
 	: Scene(game)
 {
 	{
+		// テクスチャの読み込み処理
+		Renderer* ren = m_game->getRenderer();
+
+		// 背景画像
+		ImageData imgData = ren->allocateShaderResource(L"src\\back-s03b.png");
+		if (imgData.imgIndex == -1) throw std::exception();
+		m_imgLoadData.push_back(imgData);
+
+		// 飛空艇
+		imgData = ren->allocateShaderResource(L"src\\pipo-airship01.png");
+		if (imgData.imgIndex == -1) throw std::exception();
+		m_imgLoadData.push_back(imgData);
+
+		// かぼちゃ（エネミー）
+		imgData = ren->allocateShaderResource(L"src\\kabocha.png");
+		if (imgData.imgIndex == -1) throw std::exception();
+		m_imgLoadData.push_back(imgData);
+
+		// 煙
+		imgData = ren->allocateShaderResource(L"src\\pipo-charachip_smoke02a-s.png");
+		if (imgData.imgIndex == -1) throw std::exception();
+		m_imgLoadData.push_back(imgData);
+
+		// 光の弾
+		imgData = ren->allocateShaderResource(L"src\\pipo-hikarimono007.png");
+		if (imgData.imgIndex == -1) throw std::exception();
+		m_imgLoadData.push_back(imgData);
+
+		// 爆発
+		imgData = ren->allocateShaderResource(L"src\\pipo-mapeffect005.png");
+		if (imgData.imgIndex == -1) throw std::exception();
+		m_imgLoadData.push_back(imgData);
+
+	}
+	{
 		// 背景ループテクスチャ
 		XMFLOAT2 spriteSize =
 			XMFLOAT2((float)m_game->getWidth(), (float)m_game->getHeight());

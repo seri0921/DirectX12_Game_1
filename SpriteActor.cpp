@@ -55,6 +55,10 @@ SpriteActor::~SpriteActor()
 	{
 		m_scene->getGame()->getRenderer()->releaseConstBuffer(m_modelIndex);
 	}
+	if (m_imgData.imgIndex >= 0)
+	{
+		m_scene->getGame()->getRenderer()->releaseShaderResource(m_imgData);
+	}
 }
 
 void SpriteActor::update(float deltaTime)

@@ -2,6 +2,7 @@
 
 #include "GameUtil.h"
 #include "Keyboard.h"
+#include "Mouse.h"
 #include <Windows.h>
 #include <vector>
 #include <memory>
@@ -24,6 +25,8 @@ public:
 	float getMaxSpeed() const { return m_maxSpeed; }
 	void setLifeTime(float life) { m_lifeTime = life; }
 	float getLifeTime() const { return m_lifeTime; }
+
+	virtual void damage(float dm = 0.0f) {}
 
 protected:
 	class Scene* m_scene;

@@ -167,6 +167,7 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CharaActor.cpp" />
     <ClCompile Include="ColorAnimActor.cpp" />
+    <ClCompile Include="EffectActor.cpp" />
     <ClCompile Include="EnemyActor.cpp" />
     <ClCompile Include="EnemyBulletActor.cpp" />
     <ClCompile Include="Game.cpp" />
@@ -174,6 +175,7 @@
     <ClCompile Include="GMath.cpp" />
     <ClCompile Include="Keyboard.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Mouse.cpp" />
     <ClCompile Include="PlayerActor.cpp" />
     <ClCompile Include="PlayerBulletActor.cpp" />
     <ClCompile Include="Renderer.cpp" />
@@ -192,12 +194,14 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CharaActor.h" />
     <ClInclude Include="ColorAnimActor.h" />
+    <ClInclude Include="EffectActor.h" />
     <ClInclude Include="EnemyActor.h" />
     <ClInclude Include="EnemyBulletActor.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameUtil.h" />
     <ClInclude Include="GMath.h" />
     <ClInclude Include="Keyboard.h" />
+    <ClInclude Include="Mouse.h" />
     <ClInclude Include="PlayerActor.h" />
     <ClInclude Include="PlayerBulletActor.h" />
     <ClInclude Include="Renderer.h" />

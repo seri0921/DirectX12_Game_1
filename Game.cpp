@@ -61,9 +61,11 @@ void Game::initialize(HWND hwnd, int width, int height)
 
 	// キーボードの初期化
 	m_keyboard.initialize();
+	// マウスの初期化
+	m_mouse.initialize(m_hwnd);
 
 	// シーンの初期化
-	m_scene = std::make_unique<TestScene>(this);
+	m_scene = std::make_unique<ShootingScene>(this);
 
 }
 
@@ -86,8 +88,9 @@ bool Game::loop()
 
 void Game::input()
 {
-	// キーボードやゲームパッドなどの入力を受け取る処理を記述
+	// キーボードやゲームパッドなどの入力
 	m_keyboard.input();
+	m_mouse.input();
 }
 
 void Game::update(float deltaTime){

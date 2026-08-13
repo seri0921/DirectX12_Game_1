@@ -12,6 +12,10 @@ Scene::~Scene()
 {
 	releaseActors(m_actors);
 	releaseActors(m_actorsTemp);
+	for (int i = 0; i < m_imgLoadData.size(); ++i)
+	{
+		m_game->getRenderer()->releaseShaderResource(m_imgLoadData[i]);
+	}
 }
 
 void Scene::addActor(Actor* actor)

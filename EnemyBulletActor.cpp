@@ -46,7 +46,7 @@ void EnemyBulletActor::update(float deltaTime)
 		if (detectCircleCollision(p, e))
 		{
 			setDead();
-			player->setDead();
+			player->damage();
 		}
 	}
 }

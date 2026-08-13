@@ -4,6 +4,7 @@
 #include "ShootingScene.h"
 #include "PlayerActor.h"
 #include "EnemyBulletActor.h"
+#include "EffectActor.h"
 
 EnemyActor::EnemyActor(Scene* scene, const std::wstring& filePath,
 	const std::vector<std::vector<UINT>>& indices, float radius,
@@ -40,21 +41,23 @@ void EnemyActor::update(float deltaTime)
 	ShootingScene* scene = (ShootingScene*)m_scene;
 	PlayerActor* player = scene->getPlayer();
 
-	if (!player->isDead())
+	if ((!player->isDead() && !player->isInvincibleMode())
+		&& player->getState() == PlayerActor::PlayerState::Playing)
 	{
 		Circle p = player->getCircle();
 		Circle e = getCircle();
 		if (detectCircleCollision(p, e))
 		{
-			setDead();
-			player->setDead();
+			damage();
+			player->damage();
 			return;
 		}
 	}
 
 	if (m_waitTime > 0.0f) m_waitTime -= deltaTime;
 
-	if (m_waitTime <= 0.0f && !player->isDead())
+	if ((m_waitTime <= 0.0f && !player->isDead())
+		&& player->getState() == PlayerActor::PlayerState::Playing)
 	{
 		XMFLOAT2 v = 200.0f * normalize(player->getPos() - m_pos);
 		std::vector<UINT> indices{ 7, 6, 7, 8 };
@@ -66,4 +69,15 @@ void EnemyActor::update(float deltaTime)
 		scene->addEnemyBullet(bullet);
 		m_waitTime = (float)scene->getGame()->getRand(2, 4);
 	}
+}
+
+void EnemyActor::damage(float dm)
+{
+	setDead();
+	std::vector<UINT> indices{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+	std::vector<std::vector<UINT>> anims{ indices };
+	XMFLOAT2 size(32.0f, 32.0f);
+	createMultipleEffects(m_scene, L"src\\pipo-mapeffect005.png",
+		anims, 0, 0.06f, 10, 1, Renderer::Shader2DAlphaLoopPoint,
+		5, 0.08f, 20.0f, 16.0f, 16.0f, m_pos, &size, Ones2d, true);
 }

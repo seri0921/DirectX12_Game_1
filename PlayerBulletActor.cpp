@@ -3,6 +3,7 @@
 #include "Scene.h"
 #include "ShootingScene.h"
 #include "EnemyActor.h"
+#include "EffectActor.h"
 
 
 PlayerBulletActor::PlayerBulletActor(Scene* scene, const std::wstring& filePath,
@@ -47,7 +48,7 @@ void PlayerBulletActor::update(float deltaTime)
 		if (detectCircleCollision(p, e))
 		{
 			setDead();
-			enemy->setDead();
+			enemy->damage();
 		}
 	}
 }

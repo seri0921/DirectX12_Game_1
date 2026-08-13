@@ -15,6 +15,7 @@ public:
 	~EnemyActor();
 
 	void update(float deltaTime) override;
+	void damage(float dm = 0.0f) override;
 
 private:
 	float m_waitTime;

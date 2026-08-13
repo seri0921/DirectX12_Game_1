@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include "GameUtil.h"
 
 class Scene
 {
@@ -21,6 +22,7 @@ protected:
 	bool m_isRunning;
 	std::vector<class Actor*> m_actors;
 	std::vector<class Actor*> m_actorsTemp;
+	std::vector<ImageData> m_imgLoadData;
 
 };
 

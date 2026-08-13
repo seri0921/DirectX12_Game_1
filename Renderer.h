@@ -54,6 +54,7 @@ public:
 	ImageData allocateShaderResource(const std::wstring& filePath,
 		bool ddsFlag = false);
 	void setMaterialSlot(int index, int slotNum, const ImageData& imgDate);
+	void releaseShaderResource(const ImageData& imgData);
 
 	bool drawSprite(int modelIndex, int shaderIndex, ImageData imgData,
 		XMFLOAT2 pos, float theta = 0.0f,
@@ -97,6 +98,7 @@ private:
 
 	static const int ReleaseCountStart = 5;
 	std::vector<std::pair<int, int>> m_constBufferReleaseList;
+	std::vector<std::pair<int, int>> m_texBufferReleaseList;
 	
 	ComPtr<IDXGIFactory4> m_dxgiFactory;	// m_dxgiFactory： DXGIの機能を用いるために使用
 	D3D_FEATURE_LEVEL m_featureLevel;	// m_featureLevel： GPUの機能レベル
@@ -119,6 +121,7 @@ private:
 	DXGI_FORMAT m_renderTargetFormat;
 	ComPtr<ID3D12DescriptorHeap> m_scDescHeap[FrameNum];
 	ComPtr<ID3D12Resource> m_textureBuffer[MaxTextureNum];
+	int m_textureReferenceCount[MaxTextureNum];
 
 	UINT m_textureNum;
 	std::unordered_map<std::wstring, ImageData> m_textures;
