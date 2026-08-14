@@ -148,6 +148,9 @@ void PlayerActor::updatePlaying(float deltaTime)
 		ShootingScene* scene = (ShootingScene*)m_scene;
 		scene->addPlayerBullet(bullet);
 		m_waitTime = m_waitInterval;
+
+		SoundSystem* soundSystem = m_scene->getGame()->getSoundSystem();
+		soundSystem->setSoundEffect(L"src\\maou_se_battle_gun05.mp3");
 	}
 
 	if (m_invincibleTime > 0.0f)

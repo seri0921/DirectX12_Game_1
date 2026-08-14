@@ -16,6 +16,10 @@ Scene::~Scene()
 	{
 		m_game->getRenderer()->releaseShaderResource(m_imgLoadData[i]);
 	}
+	for (int i = 0; i < m_soundLoadData.size(); ++i)
+	{
+		m_game->getSoundSystem()->releaseSoundFile(m_soundLoadData[i]);
+	}
 }
 
 void Scene::addActor(Actor* actor)

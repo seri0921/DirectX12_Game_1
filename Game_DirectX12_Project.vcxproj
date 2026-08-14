@@ -182,6 +182,8 @@
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="ShootingScene.cpp" />
+    <ClCompile Include="SoundSource.cpp" />
+    <ClCompile Include="SoundSystem.cpp" />
     <ClCompile Include="SpriteActor.cpp" />
     <ClCompile Include="TestScene.cpp" />
   </ItemGroup>
@@ -208,6 +210,8 @@
     <ClInclude Include="Scene.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="ShootingScene.h" />
+    <ClInclude Include="SoundSource.h" />
+    <ClInclude Include="SoundSystem.h" />
     <ClInclude Include="SpriteActor.h" />
     <ClInclude Include="TestScene.h" />
   </ItemGroup>

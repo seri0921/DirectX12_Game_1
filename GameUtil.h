@@ -132,4 +132,23 @@ XMMATRIX calcSpriteUVMatrix(const XMFLOAT2& p1, const XMFLOAT2& p2,
 // 数値情報を出力ウィンドウに表示
 void printNum(const wchar_t* str, int num);
 
+// ランダムノイズ画像の生成
 void createRandomNoizeImage(std::vector<ColorRGBA>& img, class Game* game);
+
+// サウンドデータ
+struct SoundData
+{
+	WAVEFORMATEX format;
+	std::vector<BYTE> waveData;
+
+	SoundData() : format{} {}
+};
+
+// サウンドの参照情報
+struct SoundInfo
+{
+	int index;
+	std::wstring filePath;
+
+	SoundInfo() : index(-1) {}
+};

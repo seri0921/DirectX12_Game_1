@@ -7,6 +7,7 @@
 #include <vector>
 #include <memory>
 #include "Renderer.h"
+#include "SoundSystem.h"
 
 class Actor
 {

@@ -80,4 +80,8 @@ void EnemyActor::damage(float dm)
 	createMultipleEffects(m_scene, L"src\\pipo-mapeffect005.png",
 		anims, 0, 0.06f, 10, 1, Renderer::Shader2DAlphaLoopPoint,
 		5, 0.08f, 20.0f, 16.0f, 16.0f, m_pos, &size, Ones2d, true);
+
+	SoundSystem* soundSystem = m_scene->getGame()->getSoundSystem();
+	if (!soundSystem->setSoundEffect(L"src\\maou_se_battle_explosion06.mp3"))
+		throw std::exception();
 }

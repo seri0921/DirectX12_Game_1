@@ -8,6 +8,7 @@
 #include <memory>
 #include "Scene.h"
 #include "Renderer.h"
+#include "SoundSystem.h"
 #include <random>
 
 class Game
@@ -26,6 +27,7 @@ public:
 	const Keyboard& getKeyboard() const { return m_keyboard; }
 	const Mouse& getMouse() const { return m_mouse; }
 	Renderer* getRenderer() { return m_renderer.get(); }
+	SoundSystem* getSoundSystem() { return m_soundSystem.get(); }
 
 	double getRand();
 	int getRand(int minValue, int maxValue);
@@ -50,6 +52,7 @@ private:
 
 	std::unique_ptr<Scene> m_scene;
 	std::unique_ptr<Renderer> m_renderer;
+	std::unique_ptr<SoundSystem> m_soundSystem;
 
 	std::mt19937_64 m_rand;
 	std::uniform_real_distribution<double> m_uniRand;

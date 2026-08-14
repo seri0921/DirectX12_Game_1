@@ -23,6 +23,7 @@ protected:
 	std::vector<class Actor*> m_actors;
 	std::vector<class Actor*> m_actorsTemp;
 	std::vector<ImageData> m_imgLoadData;
+	std::vector<SoundInfo> m_soundLoadData;
 
 };
 

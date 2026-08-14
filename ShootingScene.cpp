@@ -3,6 +3,7 @@
 #include <exception>
 #include "Renderer.h"
 #include "EnemyActor.h"
+#include "SoundSystem.h"
 
 ShootingScene::ShootingScene(Game* game)
 	: Scene(game)
@@ -64,6 +65,27 @@ ShootingScene::ShootingScene(Game* game)
 		if (!m_player->isEnabled()) throw std::exception();
 	}
 
+	{
+		// サウンドの読み込み
+		SoundSystem* soundSystem = m_game->getSoundSystem();
+		SoundInfo sinfo;
+
+		sinfo = soundSystem->loadSoundFile(L"src\\maou_bgm_fantasy02.mp3");
+		if (sinfo.index == -1) throw std::exception();
+		m_soundLoadData.push_back(sinfo);
+		sinfo = soundSystem->loadSoundFile(L"src\\maou_se_battle_gun05.mp3");
+		if (sinfo.index == -1) throw std::exception();
+		m_soundLoadData.push_back(sinfo);
+		sinfo = soundSystem->loadSoundFile(L"src\\maou_se_battle_explosion06.mp3");
+		if (sinfo.index == -1) throw std::exception();
+		m_soundLoadData.push_back(sinfo);
+
+		soundSystem->setBGMVolume(0.5f);
+		soundSystem->setSEVolume(0.5f);
+		soundSystem->setBGM(L"src\\maou_bgm_fantasy02.mp3", true);
+
+	}
+
 	m_isRunning = true;
 }
 
@@ -75,6 +97,9 @@ ShootingScene::~ShootingScene()
 	releaseActors(m_enemyBulletsTemp);
 	releaseActors(m_enemies);
 	releaseActors(m_enemiesTemp);
+
+	SoundSystem* soundSystem = m_game->getSoundSystem();
+	soundSystem->stopBGM();
 }
 
 void ShootingScene::update(float deltaTime)

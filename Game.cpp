@@ -29,6 +29,9 @@ Game::~Game()
 		m_scene.reset();
 	}
 
+	// サウンドの解放
+	m_soundSystem.reset();
+
 	// レンダラーの解放
 	m_renderer.reset();
 
@@ -54,6 +57,10 @@ void Game::initialize(HWND hwnd, int width, int height)
 	// レンダラーの初期化
 	m_renderer = std::make_unique<Renderer>(this, ColorBlack);
 	if (!m_renderer->initialize()) throw std::exception();
+
+	// サウンドの初期化
+	m_soundSystem = std::make_unique<SoundSystem>();
+	if (!m_soundSystem->initialize()) throw std::exception();
 
 	// 時間計測の初期化
 	QueryPerformanceFrequency(&m_freqTime);
@@ -93,7 +100,9 @@ void Game::input()
 	m_mouse.input();
 }
 
-void Game::update(float deltaTime){
+void Game::update(float deltaTime)
+{
+	m_soundSystem->update(deltaTime);
 	m_renderer->update(deltaTime);
 
 	m_scene->update(deltaTime);
