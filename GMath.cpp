@@ -34,6 +34,11 @@ XMFLOAT2 operator* (float a, const XMFLOAT2& b)
 	return XMFLOAT2(a * b.x, a * b.y);
 }
 
+XMFLOAT2 operator* (const XMFLOAT2& a, const XMFLOAT2& b)
+{
+	return XMFLOAT2(a.x * b.x, a.y * b.y);
+}
+
 void operator+= (XMFLOAT2& a, const XMFLOAT2& b)
 {
 	a.x += b.x;

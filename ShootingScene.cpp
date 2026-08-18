@@ -4,9 +4,11 @@
 #include "Renderer.h"
 #include "EnemyActor.h"
 #include "SoundSystem.h"
+#include "ShootingTitleScene.h"
 
 ShootingScene::ShootingScene(Game* game)
 	: Scene(game)
+	, m_score(0)
 {
 	{
 		// テクスチャの読み込み処理
@@ -66,6 +68,25 @@ ShootingScene::ShootingScene(Game* game)
 	}
 
 	{
+		// 文字列生成
+		FontData fd;
+		m_game->getRenderer()->getFontData(Renderer::BaseFont, fd);
+		wchar_t buf[11];
+		wsprintfW(buf, L"SCORE:%d", m_score);
+
+		m_scoreString = std::make_unique<StringActor>(this, buf,
+			fd, 24.0f * Ones2d, Renderer::Shader2DAlphaLoopPoint,
+			XMFLOAT2(480.0f, 20.0f), ZeroVec2d, Ones2d, 0.0f, 0.0f, 0.6f, 10);
+		if (!m_scoreString->isEnabled()) throw std::exception();
+
+		m_messageUI = std::make_unique<StringActor>(this, L"Press Enter",
+			fd, 24.0f * Ones2d, Renderer::Shader2DAddLoopPoint,
+			XMFLOAT2(240.0f, 240.0f), ZeroVec2d, Ones2d, 0.0f, 0.0f, 0.6f, -1);
+		if (!m_messageUI->isEnabled()) throw std::exception();
+		m_messageUI->setColorVector(ColorCyan, 1.0f);
+	}
+
+	{
 		// サウンドの読み込み
 		SoundSystem* soundSystem = m_game->getSoundSystem();
 		SoundInfo sinfo;
@@ -102,7 +123,7 @@ ShootingScene::~ShootingScene()
 	soundSystem->stopBGM();
 }
 
-void ShootingScene::update(float deltaTime)
+SceneState ShootingScene::update(float deltaTime, Scene** newScene)
 {
 	// 敵の生成処理
 	if (m_game->getRand() < 0.05)
@@ -122,10 +143,18 @@ void ShootingScene::update(float deltaTime)
 	// 更新処理
 	m_back->update(deltaTime);
 	m_player->update(deltaTime);
+	m_scoreString->update(deltaTime);
 	updateActors(m_playerBullets, deltaTime);
 	updateActors(m_enemyBullets, deltaTime);
 	updateActors(m_enemies, deltaTime);
 	updateActors(m_actors, deltaTime);
+
+	{
+		// m_scoreStringの文字列内容を更新
+		wchar_t buf[11];
+		wsprintfW(buf, L"SCORE:%d", m_score);
+		m_scoreString->setString(buf);
+	}
 
 	// 削除処理、追加処理
 	removeActors(m_actors);
@@ -136,14 +165,31 @@ void ShootingScene::update(float deltaTime)
 	moveIntoActors(m_enemyBulletsTemp, m_enemyBullets);
 	removeActors(m_enemies);
 	moveIntoActors(m_enemiesTemp, m_enemies);
+
+	if (m_player->isDead())
+	{
+		const Keyboard& keyboard = m_game->getKeyboard();
+		if (keyboard.isPressed(VK_RETURN))
+		{
+			*newScene = new ShootingTitleScene(m_game);
+			return SceneState::Replace;
+		}
+	}
+	return SceneState::Continue;
 }
 
 void ShootingScene::draw()
 {
 	m_back->draw();
 	m_player->draw();
+	m_scoreString->draw();
 	drawActors(m_enemies);
 	drawActors(m_playerBullets);
 	drawActors(m_enemyBullets);
 	drawActors(m_actors);
+
+	if (m_player->isDead())
+	{
+		m_messageUI->draw();
+	}
 }

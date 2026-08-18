@@ -74,6 +74,10 @@ public:
 	static const wchar_t* CyanTexture;
 	static const wchar_t* MagentaTexture;
 
+	bool getFontData(const wchar_t* fontName, FontData& fd);
+
+	static const wchar_t* BaseFont;
+
 private:
 	class Game* m_game;
 
@@ -149,6 +153,8 @@ private:
 	std::vector<SpriteDrawInfo> m_spriteDrawList;
 	int m_spriteNum;
 
+	std::unordered_map<std::wstring, FontData> m_fonts;
+
 	bool createFactory();
 	bool createCommandQueue();
 	bool createDevice(const wchar_t* adapterName);
@@ -195,5 +201,7 @@ private:
 	void setCommandCSBufferView(int index);
 	void drawBatchSprite();
 	void setShader(int shaderIndex);
+
+	bool createFontData();
 };
 

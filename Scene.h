@@ -9,7 +9,12 @@ public:
 	Scene(class Game* game);
 	virtual ~Scene();
 
-	virtual void update(float deltaTime) = 0;
+	enum class SceneState
+	{
+		Continue, Push, Pop, Replace
+	};
+
+	virtual SceneState update(float deltaTime, Scene** newScene) = 0;
 	virtual void draw() = 0;
 
 	class Game* getGame() { return m_game; }
@@ -26,4 +31,6 @@ protected:
 	std::vector<SoundInfo> m_soundLoadData;
 
 };
+
+typedef Scene::SceneState SceneState;
 

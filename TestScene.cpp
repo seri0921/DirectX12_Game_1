@@ -49,7 +49,7 @@ TestScene::~TestScene()
 {
 }
 
-void TestScene::update(float deltaTime)
+SceneState TestScene::update(float deltaTime, Scene** newScene)
 {
 	const Keyboard& keyboard = m_game->getKeyboard();
 	
@@ -65,6 +65,8 @@ void TestScene::update(float deltaTime)
 	alpha += 0.001;
 	alpha = (alpha > 1.0f) ? 1.0f : alpha;
 	m_unicolor->setColorVector(Ones3d, alpha);
+
+	return SceneState::Continue;
 }
 
 void TestScene::draw()

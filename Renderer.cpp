@@ -11,6 +11,8 @@ const wchar_t* Renderer::YellowTexture(L"Yellow");
 const wchar_t* Renderer::CyanTexture(L"Cyan");
 const wchar_t* Renderer::MagentaTexture(L"Magenta");
 
+const wchar_t* Renderer::BaseFont(L"BaseFont");
+
 Renderer::Renderer(Game* game, XMFLOAT3 backColor)
 	: m_game(game)
 	, m_featureLevel()
@@ -75,7 +77,7 @@ bool Renderer::initialize()
 		true, false, Shader::BlendConfig::Alpha);
 
 	m_shaders[Shader2DAddLoopPoint] = std::make_unique<Shader>(
-		m_device.Get(), L"shader\\simpleVS.cso", L"shader\\simplePS.cso",
+		m_device.Get(), L"shader\\simpleVS.cso", L"shader\\AdditiveBlendPS.cso",
 		inputLayouts, 2, m_renderTargetFormat,
 		true, false, Shader::BlendConfig::Add);
 	for (int i = 0; i < SystemShaderNum; ++i)
@@ -134,6 +136,9 @@ bool Renderer::initialize()
 		if (imgData.imgIndex == -1) return false;
 
 	}
+
+	// フォント生成
+	if (!createFontData()) return false;
 
 	return true;
 }
@@ -1093,4 +1098,32 @@ void Renderer::releaseShaderResource(const ImageData& imgData)
 		m_texBufferReleaseList.push_back(std::make_pair(index, ReleaseCountStart));
 		m_textures.erase(it);
 	}
+}
+
+bool Renderer::createFontData()
+{
+	// ベースフォントの生成
+	{
+		std::wstring ip(L"src\\PixelMplus12.png");
+		ImageData id = allocateShaderResource(ip);
+		if (id.imgIndex == -1) return false;
+
+		std::vector<FontIndex> findex;
+		findex.push_back(FontIndex(L' ', L' ' + 96, 0));	// 空白文字を使用      
+		findex.push_back(FontIndex(L'あ', L'あ' + 190, 96));
+		findex.push_back(FontIndex(0x4E00, 0x4E00 + 20950, 96 + 190));
+
+		m_fonts[BaseFont] = FontData(ip, findex, 256, 90, false);
+	}
+
+	return true;
+}
+
+bool Renderer::getFontData(const wchar_t* fontName, FontData& fd)
+{
+	auto it = m_fonts.find(fontName);
+	if (it == m_fonts.end()) return false;
+
+	fd = (*it).second;
+	return true;
 }

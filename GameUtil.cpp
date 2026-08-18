@@ -191,3 +191,9 @@ bool detectBoxToCircleCollision(Box& b, Circle& c)
 
 	return lengthSq(s - c.pos) <= (c.radius * c.radius);
 }
+
+// 文字コードのインデックス対応
+bool FontIndex::isInRange(wchar_t c)
+{
+	return (start <= c) && (c <= end);
+}

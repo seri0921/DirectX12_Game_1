@@ -84,4 +84,7 @@ void EnemyActor::damage(float dm)
 	SoundSystem* soundSystem = m_scene->getGame()->getSoundSystem();
 	if (!soundSystem->setSoundEffect(L"src\\maou_se_battle_explosion06.mp3"))
 		throw std::exception();
+
+	ShootingScene* scene = (ShootingScene*)m_scene;
+	scene->setScore(scene->getScore() + 10);
 }

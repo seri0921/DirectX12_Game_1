@@ -50,7 +50,7 @@ private:
 	Keyboard m_keyboard;
 	Mouse m_mouse;
 
-	std::unique_ptr<Scene> m_scene;
+	std::vector<Scene*> m_scene;
 	std::unique_ptr<Renderer> m_renderer;
 	std::unique_ptr<SoundSystem> m_soundSystem;
 

@@ -9,6 +9,7 @@ XMFLOAT2 operator+ (const XMFLOAT2& a, const XMFLOAT2& b);
 XMFLOAT2 operator- (const XMFLOAT2& a, const XMFLOAT2& b);
 XMFLOAT2 operator* (const XMFLOAT2& a, float b);
 XMFLOAT2 operator* (float a, const XMFLOAT2& b);
+XMFLOAT2 operator* (const XMFLOAT2& a, const XMFLOAT2& b);
 
 void operator+= (XMFLOAT2& a, const XMFLOAT2& b);
 void operator-= (XMFLOAT2& a, const XMFLOAT2& b);

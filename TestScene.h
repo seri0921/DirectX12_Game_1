@@ -13,7 +13,7 @@ public:
 	TestScene(class Game* game);
 	~TestScene();
 
-	void update(float deltaTime) override;
+	SceneState update(float deltaTime, Scene** newScene) override;
 	void draw() override;
 
 private:

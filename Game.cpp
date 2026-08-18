@@ -2,6 +2,7 @@
 #include <exception>
 #include "TestScene.h"
 #include "ShootingScene.h"
+#include "ShootingTitleScene.h"
 
 const float Game::FrameRate = 60.0f;
 const float Game::MaxDeltaTime = 0.05f;
@@ -24,9 +25,10 @@ Game::Game()
 Game::~Game()
 {
 	// シーンの解放
-	if (m_scene.get() != nullptr)
+	for (int i = (int)m_scene.size() - 1; i >= 0; --i)
 	{
-		m_scene.reset();
+		if (m_scene[i] == nullptr) continue;
+		delete m_scene[i];
 	}
 
 	// サウンドの解放
@@ -72,8 +74,8 @@ void Game::initialize(HWND hwnd, int width, int height)
 	m_mouse.initialize(m_hwnd);
 
 	// シーンの初期化
-	m_scene = std::make_unique<ShootingScene>(this);
-
+	Scene* scene = new ShootingTitleScene(this);
+	m_scene.push_back(scene);
 }
 
 bool Game::loop()
@@ -83,14 +85,15 @@ bool Game::loop()
 	{
 		input();
 		update(deltaTime);
-		if (m_scene->isRunning() == false) return false;
+		if (m_scene.empty()) return false;
+		if (m_scene.back()->isRunning() == false) return false;
 		draw();
 
 		//int dt = (int)std::round(deltaTime * 1000.0f);
 		//printNum(L"delta time = %d[msec]\n", dt);
 	}
 	
-	return m_scene->isRunning();
+	return m_scene.back()->isRunning();
 }
 
 void Game::input()
@@ -105,14 +108,35 @@ void Game::update(float deltaTime)
 	m_soundSystem->update(deltaTime);
 	m_renderer->update(deltaTime);
 
-	m_scene->update(deltaTime);
+	Scene* newScene = nullptr;
+	SceneState state = m_scene.back()->update(deltaTime, &newScene);
+	switch (state)
+	{
+	case SceneState::Continue:
+		break;
+
+	case SceneState::Pop:
+		delete m_scene.back();
+		m_scene.pop_back();
+		break;
+
+	case SceneState::Push:
+		m_scene.push_back(newScene);
+		break;
+
+	case SceneState::Replace:
+		delete m_scene.back();
+		m_scene.pop_back();
+		m_scene.push_back(newScene);
+		break;
+	}
 }
 	
 void Game::draw()
 {
 	m_renderer->begin();
 
-	m_scene->draw();
+	m_scene.back()->draw();
 
 	m_renderer->end();
 }

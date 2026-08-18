@@ -152,3 +152,30 @@ struct SoundInfo
 
 	SoundInfo() : index(-1) {}
 };
+
+// 文字コードのインデックス対応
+struct FontIndex
+{
+	wchar_t start;
+	wchar_t end;
+	int indexOffset;
+
+	FontIndex(wchar_t s, wchar_t e, int offset)
+		: start(s), end(e), indexOffset(offset) {}
+	bool isInRange(wchar_t c);
+};
+
+// フォントデータ
+struct FontData
+{
+	std::wstring fontName;
+	std::vector<FontIndex> indices;
+	UINT wNum;
+	UINT hNum;
+	bool ddsFlag;
+
+	FontData() : fontName(L""), wNum(0), hNum(0), ddsFlag(false) {}
+	FontData(std::wstring name, std::vector<FontIndex>& ind,
+		UINT w, UINT h, bool flag = false) : fontName(name), indices(ind),
+		wNum(w), hNum(h), ddsFlag(flag) {}
+};
