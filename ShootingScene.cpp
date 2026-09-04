@@ -15,17 +15,17 @@ ShootingScene::ShootingScene(Game* game)
 		Renderer* ren = m_game->getRenderer();
 
 		// 背景画像
-		ImageData imgData = ren->allocateShaderResource(L"src\\back-s03b.png");
+		ImageData imgData = ren->allocateShaderResource(L"src\\FieldBG.jpg");
 		if (imgData.imgIndex == -1) throw std::exception();
 		m_imgLoadData.push_back(imgData);
 
 		// 飛空艇
-		imgData = ren->allocateShaderResource(L"src\\pipo-airship01.png");
+		imgData = ren->allocateShaderResource(L"src\\doragon.png");
 		if (imgData.imgIndex == -1) throw std::exception();
 		m_imgLoadData.push_back(imgData);
 
 		// かぼちゃ（エネミー）
-		imgData = ren->allocateShaderResource(L"src\\kabocha.png");
+		imgData = ren->allocateShaderResource(L"src\\EnemyDragon.png");
 		if (imgData.imgIndex == -1) throw std::exception();
 		m_imgLoadData.push_back(imgData);
 
@@ -50,7 +50,7 @@ ShootingScene::ShootingScene(Game* game)
 		XMFLOAT2 spriteSize =
 			XMFLOAT2((float)m_game->getWidth(), (float)m_game->getHeight());
 		XMFLOAT2 uvSize = XMFLOAT2(320.0f, 240.0f);
-		m_back = std::make_unique<SpriteActor>(this, L"src\\back-s03b.png",
+		m_back = std::make_unique<SpriteActor>(this, L"src\\FieldBG.jpg",
 			Renderer::Shader2DLoopLinear,
 			ZeroVec2d, ZeroVec2d, &spriteSize, &uvSize, Ones2d,
 			0.0f, 0.0f, ZeroVec2d, XMFLOAT2(30.0f, 0.0f));
@@ -61,10 +61,13 @@ ShootingScene::ShootingScene(Game* game)
 		// プレイヤーを生成
 		std::vector<UINT> indices{ 7,6,7,8 };
 		std::vector<std::vector<UINT>> anims{ indices };
-		m_player = std::make_unique<PlayerActor>(this, L"src\\pipo-airship01.png",
+		m_player = std::make_unique<PlayerActor>(this, L"src\\doragon.png",
 			anims, 16.0f, 0, 0.2f, 3, 4, Renderer::Shader2DAlphaLoopPoint,
 			XMFLOAT2(60.0f, 240.0f));
 		if (!m_player->isEnabled()) throw std::exception();
+
+		// サイズ変更
+		m_player->setScale(XMFLOAT2(1.5f, 1.5f));
 	}
 
 	{
@@ -132,7 +135,7 @@ SceneState ShootingScene::update(float deltaTime, Scene** newScene)
 		std::vector<UINT> indices{ 4, 3, 4, 5 };
 		std::vector<std::vector<UINT>> anims{ indices };
 		EnemyActor* enemy = new EnemyActor(this,
-			L"src\\kabocha.png", anims, 16.0f, 0, 0.2f, 3, 4,
+			L"src\\EnemyDragon.png", anims, 16.0f, 0, 0.2f, 3, 4,
 			Renderer::Shader2DAlphaLoopPoint,
 			XMFLOAT2((float)m_game->getWidth() + 16.0f, y), -200.0f * UnitVecX2d);
 		if (!enemy->isEnabled()) throw std::exception();
